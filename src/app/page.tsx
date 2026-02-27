@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -5,17 +7,32 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import SearchSection from "@/components/SearchSection";
 import { getTrendingReports } from "@/lib/db";
 import type { Report } from "@/lib/db";
+import { useEffect, useState } from 'react'; // useState 추가
 
-function subjectEmoji(subject: string) {
-  const map: Record<string, string> = {
-    화학: "⚗️", 물리학: "⚡", 생명과학: "🧬",
-    지구과학: "🌍", 수학: "📐", 정보: "💻",
-  };
-  return map[subject] ?? "📚";
-}
+export default function Home() {
+  const [trending, setTrending] = useState<Report[]>([]);
 
-export default async function Home() {
-  const trending: Report[] = await getTrendingReports(10);
+  // 1. 카톡 탈출 및 데이터 가져오기 로직
+  useEffect(() => {
+    // 카톡 탈출 체크
+    const isKakao = /KAKAOTALK/i.test(navigator.userAgent);
+    if (isKakao) {
+      window.location.href = `kakaotalk://web/openExternalApp/?url=${encodeURIComponent(window.location.href)}`;
+      return;
+    }
+
+    // 트렌딩 데이터 가져오기
+    getTrendingReports(10).then(data => setTrending(data));
+  }, []);
+
+  // 2. 이모지 함수
+  function subjectEmoji(subject: string) {
+    const map: Record<string, string> = {
+      화학: "🧪", 물리학: "⚡", 생명과학: "🧬",
+      지구과학: "🌍", 수학: "📐", 정보: "💻",
+    };
+    return map[subject] || "📚";
+  }
 
   return (
     <main className="min-h-screen bg-gray-50">
