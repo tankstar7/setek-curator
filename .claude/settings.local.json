@@ -19,7 +19,8 @@
       "Bash(wc:*)",
       "Bash(head:*)",
       "Bash(cd \"C:/Users/USER/desktop/setek-web\" && npx tsc --noEmit 2>&1)",
-      "Bash(echo INSTALLED:*)"
+      "Bash(echo INSTALLED:*)",
+      "Bash(grep:*)"
     ]
   }
 }

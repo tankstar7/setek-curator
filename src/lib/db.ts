@@ -207,7 +207,7 @@ export async function saveSkillTree(data: WithFieldValue<SkillTree>): Promise<vo
  * 해당 URL을 클릭해 인덱스를 추가하면 된다.
  */
 // --- 1. 계층형 과목 매핑 도우미 함수 ---
-function getSubjectGroup(subject: string): string[] {
+export function getSubjectGroup(subject: string): string[] {
   // 연구원님이 설계하신 22개정 과학/진로선택 트리
   if (subject === '과학') {
     return [
@@ -250,7 +250,7 @@ export async function getReports(filters?: {
   if (filters?.subject) {
     const targetSubjects = getSubjectGroup(filters.subject.trim());
     // 수정됨: % 기호를 * 기호로 변경
-    const orQuery = targetSubjects.map(sub => `subject.ilike.*${sub}*`).join(',');
+    const orQuery = targetSubjects.map(sub => `subject.ilike.%${sub}%`).join(',');
     query = query.or(orQuery);
   }
 
@@ -258,7 +258,7 @@ export async function getReports(filters?: {
   if (filters?.major_unit) {
     const cleanMajorUnit = filters.major_unit.replace(/^([A-Za-zIVX]+|\d+)\.\s*/, '').trim();
     // 단일 메서드에서는 %가 작동하지만, 안전하게 *로 통일
-    query = query.ilike('large_unit_name', `*${cleanMajorUnit}*`);
+    query = query.ilike('large_unit_name', `%${cleanMajorUnit}%`);
   }
 
   // 3. 출판사 필터는 의도적으로 무시!

@@ -3,7 +3,21 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { getAllSkillTrees, getAllCurricula, getReports } from "@/lib/db";
-import type { SkillTree, Curriculum, Report } from "@/lib/db";
+import type { SkillTree, Curriculum } from "@/lib/db";
+
+/** Supabase premium_reports 평탄화 구조 */
+type LabReport = {
+  id?: string;
+  title: string;
+  subject: string;
+  large_unit_name: string;
+  trend_keyword?: string;
+  target_majors: string[];
+  preview_content: string | null;
+  main_content: string | null;
+  views?: number;
+  access_tier?: string;
+};
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,8 +114,8 @@ export default function LabPage() {
 
   const [skillTrees, setSkillTrees] = useState<SkillTree[]>([]);
   const [curricula, setCurricula] = useState<Curriculum[]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [reports, setReports] = useState<LabReport[]>([]);
+  const [selectedReport, setSelectedReport] = useState<LabReport | null>(null);
   const [loadingReports, setLoadingReports] = useState(false);
 
   // 6-step filter state
@@ -135,7 +149,7 @@ export default function LabPage() {
       if (selTrend) filters.trend_keyword = selTrend;
       if (selMajor) filters.target_major = selMajor;
       const r = await getReports({ ...filters, limitCount: 20 });
-      setReports(r);
+      setReports(r as LabReport[]);
       if (r.length > 0) setSelectedReport(r[0]);
     } finally {
       setLoadingReports(false);
@@ -171,7 +185,7 @@ export default function LabPage() {
   }, [curricula, selCourse]);
 
   const trendKeywords = useMemo(
-    () => [...new Set(reports.map((r) => r.trend_keyword))].sort(),
+    () => [...new Set(reports.map((r) => r.trend_keyword).filter(Boolean) as string[])].sort(),
     [reports]
   );
 
@@ -270,7 +284,7 @@ export default function LabPage() {
                           : "bg-gray-50 text-gray-700 hover:bg-gray-100"
                       }`}
                     >
-                      <span className="line-clamp-2">{r.report_title}</span>
+                      <span className="line-clamp-2">{r.title}</span>
                     </button>
                   ))}
                 </div>
@@ -301,13 +315,15 @@ export default function LabPage() {
                   <CardHeader>
                     <div className="flex flex-wrap gap-2 mb-2">
                       <Badge className="bg-[#1e3a5f] text-white text-xs">{selectedReport.subject}</Badge>
-                      <Badge variant="secondary" className="text-xs">{selectedReport.major_unit}</Badge>
-                      <Badge variant="outline" className="text-xs border-blue-300 text-blue-600">
-                        #{selectedReport.trend_keyword}
-                      </Badge>
+                      <Badge variant="secondary" className="text-xs">{selectedReport.large_unit_name}</Badge>
+                      {selectedReport.trend_keyword && (
+                        <Badge variant="outline" className="text-xs border-blue-300 text-blue-600">
+                          #{selectedReport.trend_keyword}
+                        </Badge>
+                      )}
                     </div>
                     <CardTitle className="text-lg leading-snug text-gray-900">
-                      {selectedReport.report_title}
+                      {selectedReport.title}
                     </CardTitle>
                     <div className="mt-2 flex flex-wrap gap-1">
                       {selectedReport.target_majors.map((m) => (
@@ -319,34 +335,18 @@ export default function LabPage() {
                   </CardHeader>
                 </Card>
 
-                {/* Free sections */}
+                {/* 미리보기 (무료) */}
                 <ContentBlock
-                  label="탐구 동기"
-                  emoji="💡"
-                  content={selectedReport.golden_template.motivation}
-                />
-                <ContentBlock
-                  label="교과서 연계 기초 지식"
-                  emoji="📖"
-                  content={selectedReport.golden_template.basic_knowledge}
-                />
-                <ContentBlock
-                  label="내용 탐구"
-                  emoji="🔬"
-                  content={selectedReport.golden_template.application}
+                  label="보고서 미리보기"
+                  emoji="📄"
+                  content={selectedReport.preview_content ?? "(미리보기가 준비되지 않았습니다)"}
                 />
 
-                {/* Premium sections (paywall) */}
+                {/* 전체 내용 (프리미엄) */}
                 <ContentBlock
-                  label="석학 시선의 심화 탐구"
-                  emoji="🧠"
-                  content={selectedReport.golden_template.in_depth}
-                  premium
-                />
-                <ContentBlock
-                  label="전공 연계 비전"
-                  emoji="🎯"
-                  content={selectedReport.golden_template.major_connection}
+                  label="전체 세특 보고서"
+                  emoji="🔬"
+                  content={selectedReport.main_content ?? "(프리미엄 내용을 불러올 수 없습니다)"}
                   premium
                 />
 

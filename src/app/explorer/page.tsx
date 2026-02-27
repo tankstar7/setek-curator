@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
-import { getAllCurricula } from "@/lib/db";
+import { getAllCurricula, getSubjectGroup } from "@/lib/db";
 import type { Curriculum } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { forceSignOut } from "@/lib/authUtils";
@@ -400,9 +400,17 @@ export default function ExplorerPage() {
           )
           .order("id", { ascending: false });
 
-        // null / undefined / "" 인 경우에는 .eq() 를 붙이지 않아 전체 조회
-        if (selSubject)        query = query.eq("subject",          selSubject);
-        if (selMajorUnit)      query = query.eq("large_unit_name",  selMajorUnit);
+        // subject: 계층형 그룹 ilike 매칭 (예: "과학" → 물리학 I / 화학 등 하위 과목 모두 포함)
+        if (selSubject) {
+          const subjectGroup = getSubjectGroup(selSubject);
+          const orQ = subjectGroup.map((s) => `subject.ilike.%${s}%`).join(",");
+          query = query.or(orQ);
+        }
+        // 대단원: 부분 일치 (로마자 번호 접두어 제거 후 ilike)
+        if (selMajorUnit) {
+          const cleaned = selMajorUnit.replace(/^([A-Za-zIVX]+|\d+)\.\s*/, "").trim();
+          query = query.ilike("large_unit_name", `%${cleaned}%`);
+        }
         if (searchQuery.trim())
           query = query.ilike("title", `%${searchQuery.trim()}%`);
 
