@@ -1,5 +1,5 @@
 /**
- * Firestore & Supabase 통합 데이터 액세스 유틸리티 (화면 타입 호환성 보강 버전)
+ * Firestore & Supabase 통합 데이터 액세스 유틸리티 (모든 화면 타입 호환성 종결 버전)
  */
 
 import {
@@ -14,8 +14,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ─────────────────────────────────────────────
-// 타입 정의 (Explorer 화면 에러 방지를 위해 구조를 더 구체화함)
+// 타입 정의 (모든 화면 에러를 막기 위해 구조를 극한으로 구체화함)
 // ─────────────────────────────────────────────
+
 export type Curriculum = { 
   id?: string; 
   subject: string; 
@@ -37,7 +38,11 @@ export type SkillTree = {
   description?: string; 
   core_required: string[]; 
   advanced_required?: string[]; 
-  ai_recommended_combo: any[]; 
+  ai_recommended_combo: {
+    courses: string[];
+    reason: string;
+    highlight_major: string[];
+  }[]; 
 };
 
 export type Report = { 
@@ -49,7 +54,13 @@ export type Report = {
   publisher: string; 
   target_majors: string[]; 
   views?: number; 
-  golden_template: any; 
+  golden_template: {
+    motivation: string;
+    basic_knowledge: string;
+    application: string;
+    in_depth: string;
+    major_connection: string;
+  }; 
 };
 
 const COL = { CURRICULUM: "curriculum", SKILL_TREES: "skill_trees", REPORTS: "reports_db" } as const;
@@ -67,7 +78,7 @@ export async function getAllCurricula(): Promise<Curriculum[]> { const snap = aw
 export async function saveSkillTree(data: WithFieldValue<SkillTree>): Promise<void> { const rawId = data.major_name as string; const safeId = rawId.replace(/\//g, "_"); await setDoc(doc(db, COL.SKILL_TREES, safeId), data); }
 
 // ─────────────────────────────────────────────
-// Reports
+// Reports (데이터 정규화 로직 포함)
 // ─────────────────────────────────────────────
 function cleanText(text: string) {
   if (!text) return '';
@@ -76,7 +87,7 @@ function cleanText(text: string) {
 
 export async function getReports(filters?: {
   subject?: string; major_unit?: string; publisher?: string; trend_keyword?: string; target_major?: string; limitCount?: number;
-}): Promise<any[]> { 
+}): Promise<Report[]> { 
   const { data, error } = await supabase.from('premium_reports').select('*').order('created_at', { ascending: false }).limit(100);
   if (error) { console.error('Supabase 에러:', error); return []; }
 
@@ -124,10 +135,10 @@ export async function getReports(filters?: {
   })).slice(0, filters?.limitCount ?? 50);
 }
 
-export async function getAllReports(): Promise<any[]> { return getReports({ limitCount: 100 }); }
-export async function getTrendingReports(n: number = 3): Promise<any[]> { return getReports({ limitCount: n }); }
+export async function getAllReports(): Promise<Report[]> { return getReports({ limitCount: 100 }); }
+export async function getTrendingReports(n: number = 3): Promise<Report[]> { return getReports({ limitCount: n }); }
 
-export async function getReportById(id: string): Promise<any | null> {
+export async function getReportById(id: string): Promise<Report | null> {
   if (!id) return null;
   try {
     const { data, error } = await supabase.from('premium_reports').select('*').eq('id', id).single();
@@ -135,11 +146,11 @@ export async function getReportById(id: string): Promise<any | null> {
 
     return {
       id: String(data.id),
+      trend_keyword: data.trend_keyword || '최신 트렌드',
       report_title: data.title || '제목 없음',
       subject: (data.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim(),
       major_unit: (data.large_unit_name || '').replace(/^([A-Za-zIVXⅠⅡⅢ]+|\d+)\.\s*/, '').trim(),
       publisher: '미래엔',
-      trend_keyword: data.trend_keyword || '최신 트렌드',
       target_majors: data.target_majors || [],
       views: data.views || 0,
       golden_template: {
