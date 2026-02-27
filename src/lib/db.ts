@@ -91,27 +91,36 @@ function getSubjectGroup(subject: string): string[] {
 }
 
 export async function getReports(filters?: {
-  subject?: string; major_unit?: string; publisher?: string; trend_keyword?: string; target_major?: string; limitCount?: number;
-}): Promise<any[]> { 
+  subject?: string; major_unit?: string; publisher?: string;
+  trend_keyword?: string; target_major?: string; limitCount?: number;
+}): Promise<any[]> {
   let supabaseQuery = supabase.from('premium_reports').select('*');
-  
+
+  // ✅ subject 필터를 서버 쿼리로 이동
+  if (filters?.subject) {
+    const targetSubjects = getSubjectGroup(filters.subject.trim());
+
+    // Supabase .or() 로 subject IN 처리 (로마자 접미사 포함 대응)
+    const orConditions = targetSubjects
+      .map(s => `subject.ilike.${s}%`)
+      .join(',');
+    supabaseQuery = supabaseQuery.or(orConditions);
+  }
+
   if (filters?.target_major) {
     supabaseQuery = supabaseQuery.contains('target_majors', [filters.target_major]);
   }
 
-  const { data, error } = await supabaseQuery.order('created_at', { ascending: false }).limit(100);
+  const fetchLimit = (filters?.limitCount ?? 20) * 5; // 여유 있게 가져오기
+  const { data, error } = await supabaseQuery
+    .order('created_at', { ascending: false })
+    .limit(fetchLimit);
+
   if (error) { console.error('Supabase 에러:', error); return []; }
 
   let results = data || [];
 
-  if (filters?.subject) {
-    const targetSubjects = getSubjectGroup(filters.subject.trim());
-    results = results.filter(item => {
-      const cleanSub = (item.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim();
-      return targetSubjects.includes(cleanSub) || targetSubjects.some(t => cleanSub.includes(t));
-    });
-  }
-
+  // major_unit 필터는 DB 컬럼명이 large_unit_name이라 클라이언트 필터 유지
   if (filters?.major_unit) {
     const cleanMajorFilter = filters.major_unit.replace(/^([A-Za-zIVX]+|\d+)\.\s*/, '').trim();
     results = results.filter(item => {
@@ -120,28 +129,23 @@ export async function getReports(filters?: {
     });
   }
 
-  // ✨ 핵심: 화면이 뻗지 않도록 기존 Firebase의 'golden_template' 구조를 완벽하게 복원해서 넘겨줍니다!
-  return results.map(item => {
-    return {
-      id: item.id?.toString(),
-      trend_keyword: item.trend_keyword || '최신 트렌드',
-      report_title: item.title || '제목 없음',
-      subject: filters?.subject ? filters.subject : (item.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim(),
-      major_unit: filters?.major_unit ? filters.major_unit : (item.large_unit_name || '대단원 없음'),
-      publisher: filters?.publisher ? filters.publisher : '미래엔',
-      target_majors: filters?.target_major ? [filters.target_major] : (item.target_majors || []),
-      views: item.views || 0,
-      
-      // 🔥 여기서 에러가 났었습니다! Supabase의 데이터를 옛날 양식에 맞춰 끼워 넣어줍니다.
-      golden_template: {
-        motivation: item.preview_content || item.main_content || "탐구 동기",
-        basic_knowledge: item.main_content || "기초 지식",
-        application: "내용 탐구",
-        in_depth: "심화 탐구",
-        major_connection: "전공 연계 비전"
-      }
-    };
-  }).slice(0, filters?.limitCount ?? 20);
+  return results.map(item => ({
+    id: item.id?.toString(),
+    trend_keyword: item.trend_keyword || '최신 트렌드',
+    report_title: item.title || '제목 없음',
+    subject: filters?.subject ?? (item.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim(),
+    major_unit: filters?.major_unit ?? (item.large_unit_name || '대단원 없음'),
+    publisher: filters?.publisher ?? '미래엔',
+    target_majors: filters?.target_major ? [filters.target_major] : (item.target_majors || []),
+    views: item.views || 0,
+    golden_template: {
+      motivation: item.preview_content || item.main_content || "탐구 동기",
+      basic_knowledge: item.main_content || "기초 지식",
+      application: "내용 탐구",
+      in_depth: "심화 탐구",
+      major_connection: "전공 연계 비전"
+    }
+  })).slice(0, filters?.limitCount ?? 20);
 }
 
 export async function getAllReports(): Promise<any[]> {
