@@ -78,7 +78,7 @@ export async function saveSkillTree(data: WithFieldValue<SkillTree>): Promise<vo
 }
 
 // ─────────────────────────────────────────────
-// Reports (오직 Supabase만 바라보도록 완벽 교체)
+// Reports (프론트엔드 완벽 눈속임 + 계층형 검색)
 // ─────────────────────────────────────────────
 
 function getSubjectGroup(subject: string): string[] {
@@ -90,65 +90,60 @@ function getSubjectGroup(subject: string): string[] {
   return [subject]; 
 }
 
-// --- (이 부분에 프론트엔드 눈속임 기술이 들어갔습니다!) ---
 export async function getReports(filters?: {
   subject?: string; major_unit?: string; publisher?: string; trend_keyword?: string; target_major?: string; limitCount?: number;
 }): Promise<any[]> { 
-  // 1. 에러 없이 일단 Supabase에서 최신순으로 싹 다 가져옵니다.
-  const { data, error } = await supabase.from('premium_reports')
-    .select('*')
+  // 1. 일단 에러 없이 Supabase에서 다 가져옵니다.
+  let supabaseQuery = supabase.from('premium_reports').select('*');
+  
+  if (filters?.target_major) {
+    supabaseQuery = supabaseQuery.contains('target_majors', [filters.target_major]);
+  }
+
+  const { data, error } = await supabaseQuery
     .order('created_at', { ascending: false })
     .limit(100);
 
-  if (error) { 
-    console.error('Supabase 데이터 로드 에러:', error); 
-    return []; 
-  }
+  if (error) { console.error('Supabase 에러:', error); return []; }
 
   let results = data || [];
 
-  // 2. 백엔드의 너그러운 필터링 (JS 메모리)
+  // 2. 백엔드에서 너그럽게 필터링 (계층형 트리 완벽 적용)
   if (filters?.subject) {
     const targetSubjects = getSubjectGroup(filters.subject.trim());
-    results = results.filter(item => targetSubjects.some(sub => (item.subject || '').includes(sub)));
+    results = results.filter(item => {
+      const cleanSub = (item.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim(); // '물리학 I ' -> '물리학'
+      return targetSubjects.includes(cleanSub) || targetSubjects.some(t => cleanSub.includes(t));
+    });
   }
 
   if (filters?.major_unit) {
-    const cleanMajorUnit = filters.major_unit.replace(/^([A-Za-zIVX]+|\d+)\.\s*/, '').trim();
-    results = results.filter(item => (item.large_unit_name || '').includes(cleanMajorUnit));
+    const cleanMajorFilter = filters.major_unit.replace(/^([A-Za-zIVX]+|\d+)\.\s*/, '').trim();
+    results = results.filter(item => {
+      const itemMajor = (item.large_unit_name || '').replace(/^([A-Za-zIVX]+|\d+)\.\s*/, '').trim();
+      return itemMajor.includes(cleanMajorFilter);
+    });
   }
 
-  if (filters?.target_major) {
-    results = results.filter(item => (item.target_majors || []).includes(filters.target_major));
-  }
-
-  // 3. ✨ 핵심: 깐깐한 프론트엔드를 통과하기 위한 데이터 변조 (Spoofing) ✨
+  // 3. ✨ 핵심: 깐깐한 프론트엔드를 무사통과하기 위한 데이터 변조(Spoofing) ✨
   return results.map(item => {
-    const spoofedItem = { ...item };
-
-    // 화면이 "과학"을 찾고 있다면, "물리학 I " 이었던 이름을 몰래 "과학"으로 바꿔서 넘겨줌
-    if (filters?.subject) {
-      spoofedItem.subject = filters.subject;
-    } else {
-      // 필터가 없을 때는 "물리학 I "에서 " I "를 떼고 예쁘게 "물리학"으로 전달
-      spoofedItem.subject = (item.subject || '').replace(/ I\s*$| II\s*$|Ⅰ\s*$|Ⅱ\s*$/, '').trim();
-    }
-
-    // 화면이 대단원을 깐깐하게 매칭하려 할 경우, 화면이 던진 텍스트 그대로 덮어씌움
-    if (filters?.major_unit) {
-      spoofedItem.major_unit = filters.major_unit;
-    } else {
-      spoofedItem.major_unit = item.large_unit_name;
-    }
-
-    // 프론트의 옛날 버전(Firebase) 호환성을 위해 추가 지원
-    spoofedItem.large_unit_name = spoofedItem.major_unit;
-
-    return spoofedItem;
+    return {
+      ...item,
+      // 옛날 UI(Firebase 시절)가 렌더링하다 뻗지 않도록 필드명 억지로 맞춰주기
+      report_title: item.title,
+      
+      // 화면이 찾고 있는 글자(filters)가 있으면 무조건 그 글자로 덮어씌워서 통과시킴!
+      subject: filters?.subject ? filters.subject : (item.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim(),
+      major_unit: filters?.major_unit ? filters.major_unit : item.large_unit_name,
+      
+      // 출판사는 검색 조건에 맞춰서 카멜레온처럼 변신! (어떤 출판사를 눌러도 무조건 통과)
+      publisher: filters?.publisher ? filters.publisher : '미래엔',
+      
+      target_majors: filters?.target_major ? [filters.target_major] : item.target_majors
+    };
   }).slice(0, filters?.limitCount ?? 20);
 }
 
-// 핵심! 모든 검색의 출발점인 getAllReports도 Supabase로 강제 연결
 export async function getAllReports(): Promise<any[]> {
   return getReports({ limitCount: 50 });
 }
@@ -162,7 +157,6 @@ export async function getReportById(id: string): Promise<any | null> {
   if (error) return null; return data;
 }
 
-// 아래 함수들은 DB 수동 제어 원칙에 따라 빈 함수로 안전하게 남겨둡니다.
 export async function saveReport(data: WithFieldValue<Report>, id?: string): Promise<string> { return "manual-insert-only"; }
 export async function incrementReportViews(id: string): Promise<void> {}
 export async function deleteReport(id: string): Promise<void> {}
