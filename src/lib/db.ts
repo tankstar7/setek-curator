@@ -288,12 +288,14 @@ export async function getTrendingReports(n: number = 3): Promise<any[]> {
 
 /** 보고서 단건 조회 (문서 ID 기반) */
 export async function getReportById(id: string): Promise<any | null> {
+  // bigint PK는 숫자로 변환, UUID/문자열은 그대로 사용
+  const queryId: string | number = /^\d+$/.test(id) ? Number(id) : id;
   const { data, error } = await supabase
     .from('premium_reports')
     .select('*')
-    .eq('id', id)
+    .eq('id', queryId)
     .single();
-    
+
   if (error) return null;
   return data;
 }
