@@ -24,6 +24,39 @@ import {
   increment,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// --- 계층형 과목 매핑 도우미 함수 (여기에 추가) ---
+function getSubjectGroup(subject: string): string[] {
+  // 연구원님이 설계하신 22개정 과학/진로선택 트리
+  if (subject === '과학') {
+    return [
+      '과학', '물리', '물리학', '역학과 에너지', '전자기와 양자',
+      '화학', '물질과 에너지', '화학 반응의 세계', '화학반응의 세계',
+      '생명과학', '세포와 물질대사', '생물의 유전',
+      '지구과학', '지구시스템과학', '행성우주과학', '행정우주과학'
+    ];
+  }
+  if (subject === '물리' || subject === '물리학') {
+    return ['물리', '물리학', '역학과 에너지', '전자기와 양자'];
+  }
+  if (subject === '화학') {
+    return ['화학', '물질과 에너지', '화학 반응의 세계'];
+  }
+  if (subject === '생명과학' || subject === '생명') {
+    return ['생명과학', '생명', '세포와 물질대사', '생물의 유전'];
+  }
+  if (subject === '지구과학' || subject === '지구') {
+    return ['지구과학', '지구', '지구시스템과학', '행정우주과학'];
+  }
+  
+  // 특정 소과목(예: '화학 반응의 세계')이 직접 들어오면 그것만 반환
+  return [subject]; 
+}
 
 // ─────────────────────────────────────────────
 // 타입 정의 (기획서 3.1 ~ 3.3)
@@ -201,63 +234,90 @@ export async function saveSkillTree(data: WithFieldValue<SkillTree>): Promise<vo
  * 인덱스 미생성 시 Firestore가 콘솔에 인덱스 생성 URL을 출력하므로
  * 해당 URL을 클릭해 인덱스를 추가하면 된다.
  */
+// --- 1. 계층형 과목 매핑 도우미 함수 ---
+function getSubjectGroup(subject: string): string[] {
+  // 연구원님이 설계하신 22개정 과학/진로선택 트리
+  if (subject === '과학') {
+    return [
+      '과학', '물리', '물리학', '역학과 에너지', '전자기와 양자',
+      '화학', '물질과 에너지', '화학 반응의 세계', '화학반응의 세계',
+      '생명과학', '세포와 물질대사', '생물의 유전',
+      '지구과학', '지구시스템과학', '행성우주과학', '행정우주과학'
+    ];
+  }
+  if (subject === '물리' || subject === '물리학') {
+    return ['물리', '물리학', '역학과 에너지', '전자기와 양자'];
+  }
+  if (subject === '화학') {
+    return ['화학', '물질과 에너지', '화학 반응의 세계', '화학반응의 세계'];
+  }
+  if (subject === '생명과학' || subject === '생명') {
+    return ['생명과학', '생명', '세포와 물질대사', '생물의 유전'];
+  }
+  if (subject === '지구과학' || subject === '지구') {
+    return ['지구과학', '지구', '지구시스템과학', '행성우주과학', '행정우주과학'];
+  }
+  
+  return [subject]; 
+}
+
+// --- 2. 새로 교체되는 getReports 함수 (Supabase + 계층형 검색) ---
 export async function getReports(filters?: {
   subject?: string;
   major_unit?: string;
   publisher?: string;
   trend_keyword?: string;
-  target_major?: string;   // array-contains 쿼리 (target_majors 필드)
+  target_major?: string;
   limitCount?: number;
-}): Promise<Report[]> {
-  const constraints: QueryConstraint[] = [];
+}): Promise<any[]> { 
+  let query = supabase.from('premium_reports').select('*');
 
-  const hasFilters = !!(
-    filters?.subject ||
-    filters?.major_unit ||
-    filters?.publisher ||
-    filters?.trend_keyword ||
-    filters?.target_major
-  );
-
+  // 1. 계층형 과목 필터 (과학 -> 물리, 화학 등 자동 포함)
   if (filters?.subject) {
-    constraints.push(where("subject", "==", filters.subject));
+    const targetSubjects = getSubjectGroup(filters.subject.trim());
+    query = query.in('subject', targetSubjects);
   }
+
+  // 2. 대단원 필터
   if (filters?.major_unit) {
-    constraints.push(where("major_unit", "==", filters.major_unit));
+    query = query.eq('large_unit_name', filters.major_unit);
   }
-  if (filters?.publisher) {
-    constraints.push(where("publisher", "==", filters.publisher));
-  }
-  if (filters?.trend_keyword) {
-    constraints.push(where("trend_keyword", "==", filters.trend_keyword));
-  }
-  // array-contains 는 다른 array-contains와 동시에 사용할 수 없다.
+
+  // 3. 출판사 필터는 의도적으로 무시! (어떤 출판사를 골라도 검색되도록 함)
+
+  // 4. 전공 필터 (배열 포함 여부 검사)
   if (filters?.target_major) {
-    constraints.push(where("target_majors", "array-contains", filters.target_major));
+    query = query.contains('target_majors', [filters.target_major]);
   }
 
-  // 필터가 없을 때만 orderBy 사용 — where + orderBy 조합은 복합 인덱스가 필요하기 때문
-  if (!hasFilters) {
-    constraints.push(orderBy("views", "desc"));
-  }
-  constraints.push(limit(filters?.limitCount ?? 20));
+  // 최신순 정렬
+  const { data, error } = await query
+    .order('created_at', { ascending: false })
+    .limit(filters?.limitCount ?? 20);
 
-  const q = query(collection(db, COL.REPORTS), ...constraints);
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => withId(d.id, d.data() as Report));
+  if (error) {
+    console.error('Supabase 데이터 로드 에러:', error);
+    return [];
+  }
+  return data;
 }
 
 /** 인기 보고서 Top N 조회 (홈 Trending 섹션용) */
-export async function getTrendingReports(n: number = 3): Promise<Report[]> {
-  // 필터 없이 views 정렬만 사용 → 단일 필드 인덱스로 동작 (인덱스 자동 생성됨)
+// --- (기존 getTrendingReports, getReportById 교체) ---
+export async function getTrendingReports(n: number = 3): Promise<any[]> {
   return getReports({ limitCount: n });
 }
 
 /** 보고서 단건 조회 (문서 ID 기반) */
-export async function getReportById(id: string): Promise<Report | null> {
-  const snap = await getDoc(doc(db, COL.REPORTS, id));
-  if (!snap.exists()) return null;
-  return withId(snap.id, snap.data() as Report);
+export async function getReportById(id: string): Promise<any | null> {
+  const { data, error } = await supabase
+    .from('premium_reports')
+    .select('*')
+    .eq('id', id)
+    .single();
+    
+  if (error) return null;
+  return data;
 }
 
 /**
