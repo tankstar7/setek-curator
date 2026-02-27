@@ -30,34 +30,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// --- 계층형 과목 매핑 도우미 함수 (여기에 추가) ---
-function getSubjectGroup(subject: string): string[] {
-  // 연구원님이 설계하신 22개정 과학/진로선택 트리
-  if (subject === '과학') {
-    return [
-      '과학', '물리', '물리학', '역학과 에너지', '전자기와 양자',
-      '화학', '물질과 에너지', '화학 반응의 세계', '화학반응의 세계',
-      '생명과학', '세포와 물질대사', '생물의 유전',
-      '지구과학', '지구시스템과학', '행성우주과학', '행정우주과학'
-    ];
-  }
-  if (subject === '물리' || subject === '물리학') {
-    return ['물리', '물리학', '역학과 에너지', '전자기와 양자'];
-  }
-  if (subject === '화학') {
-    return ['화학', '물질과 에너지', '화학 반응의 세계'];
-  }
-  if (subject === '생명과학' || subject === '생명') {
-    return ['생명과학', '생명', '세포와 물질대사', '생물의 유전'];
-  }
-  if (subject === '지구과학' || subject === '지구') {
-    return ['지구과학', '지구', '지구시스템과학', '행정우주과학'];
-  }
-  
-  // 특정 소과목(예: '화학 반응의 세계')이 직접 들어오면 그것만 반환
-  return [subject]; 
-}
-
 // ─────────────────────────────────────────────
 // 타입 정의 (기획서 3.1 ~ 3.3)
 // ─────────────────────────────────────────────
