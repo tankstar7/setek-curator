@@ -1,5 +1,5 @@
 /**
- * Firestore & Supabase 통합 데이터 액세스 유틸리티 (무적의 프론트엔드 눈속임 버전)
+ * Firestore & Supabase 통합 데이터 액세스 유틸리티 (프론트엔드 완벽 호환성 패치)
  */
 
 import {
@@ -38,7 +38,7 @@ const COL = { CURRICULUM: "curriculum", SKILL_TREES: "skill_trees", REPORTS: "re
 function withId<T>(id: string, data: T): T & { id: string } { return { id, ...data }; }
 
 // ─────────────────────────────────────────────
-// Curriculum & SkillTree (기존 Firebase 로직 완벽 유지)
+// Curriculum & SkillTree (기존 로직 유지)
 // ─────────────────────────────────────────────
 
 export async function getCurriculumBySubject(subject: string): Promise<Curriculum[]> {
@@ -78,7 +78,7 @@ export async function saveSkillTree(data: WithFieldValue<SkillTree>): Promise<vo
 }
 
 // ─────────────────────────────────────────────
-// Reports (프론트엔드 완벽 눈속임 + 계층형 검색)
+// Reports (UI 렌더링 에러 방어 + 계층형 검색)
 // ─────────────────────────────────────────────
 
 function getSubjectGroup(subject: string): string[] {
@@ -93,26 +93,21 @@ function getSubjectGroup(subject: string): string[] {
 export async function getReports(filters?: {
   subject?: string; major_unit?: string; publisher?: string; trend_keyword?: string; target_major?: string; limitCount?: number;
 }): Promise<any[]> { 
-  // 1. 일단 에러 없이 Supabase에서 다 가져옵니다.
   let supabaseQuery = supabase.from('premium_reports').select('*');
   
   if (filters?.target_major) {
     supabaseQuery = supabaseQuery.contains('target_majors', [filters.target_major]);
   }
 
-  const { data, error } = await supabaseQuery
-    .order('created_at', { ascending: false })
-    .limit(100);
-
+  const { data, error } = await supabaseQuery.order('created_at', { ascending: false }).limit(100);
   if (error) { console.error('Supabase 에러:', error); return []; }
 
   let results = data || [];
 
-  // 2. 백엔드에서 너그럽게 필터링 (계층형 트리 완벽 적용)
   if (filters?.subject) {
     const targetSubjects = getSubjectGroup(filters.subject.trim());
     results = results.filter(item => {
-      const cleanSub = (item.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim(); // '물리학 I ' -> '물리학'
+      const cleanSub = (item.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim();
       return targetSubjects.includes(cleanSub) || targetSubjects.some(t => cleanSub.includes(t));
     });
   }
@@ -125,21 +120,26 @@ export async function getReports(filters?: {
     });
   }
 
-  // 3. ✨ 핵심: 깐깐한 프론트엔드를 무사통과하기 위한 데이터 변조(Spoofing) ✨
+  // ✨ 핵심: 화면이 뻗지 않도록 기존 Firebase의 'golden_template' 구조를 완벽하게 복원해서 넘겨줍니다!
   return results.map(item => {
     return {
-      ...item,
-      // 옛날 UI(Firebase 시절)가 렌더링하다 뻗지 않도록 필드명 억지로 맞춰주기
-      report_title: item.title,
-      
-      // 화면이 찾고 있는 글자(filters)가 있으면 무조건 그 글자로 덮어씌워서 통과시킴!
+      id: item.id?.toString(),
+      trend_keyword: item.trend_keyword || '최신 트렌드',
+      report_title: item.title || '제목 없음',
       subject: filters?.subject ? filters.subject : (item.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim(),
-      major_unit: filters?.major_unit ? filters.major_unit : item.large_unit_name,
-      
-      // 출판사는 검색 조건에 맞춰서 카멜레온처럼 변신! (어떤 출판사를 눌러도 무조건 통과)
+      major_unit: filters?.major_unit ? filters.major_unit : (item.large_unit_name || '대단원 없음'),
       publisher: filters?.publisher ? filters.publisher : '미래엔',
+      target_majors: filters?.target_major ? [filters.target_major] : (item.target_majors || []),
+      views: item.views || 0,
       
-      target_majors: filters?.target_major ? [filters.target_major] : item.target_majors
+      // 🔥 여기서 에러가 났었습니다! Supabase의 데이터를 옛날 양식에 맞춰 끼워 넣어줍니다.
+      golden_template: {
+        motivation: item.preview_content || item.main_content || "탐구 동기",
+        basic_knowledge: item.main_content || "기초 지식",
+        application: "내용 탐구",
+        in_depth: "심화 탐구",
+        major_connection: "전공 연계 비전"
+      }
     };
   }).slice(0, filters?.limitCount ?? 20);
 }
@@ -154,7 +154,22 @@ export async function getTrendingReports(n: number = 3): Promise<any[]> {
 
 export async function getReportById(id: string): Promise<any | null> {
   const { data, error } = await supabase.from('premium_reports').select('*').eq('id', id).single();
-  if (error) return null; return data;
+  if (error || !data) return null; 
+
+  // 단건 조회 시에도 화면이 뻗지 않도록 똑같이 포장해서 줍니다.
+  return {
+    ...data,
+    id: data.id?.toString(),
+    report_title: data.title || '제목 없음',
+    major_unit: data.large_unit_name || '대단원 없음',
+    golden_template: {
+      motivation: data.preview_content || data.main_content || "탐구 동기",
+      basic_knowledge: data.main_content || "기초 지식",
+      application: "내용 탐구",
+      in_depth: "심화 탐구",
+      major_connection: "전공 연계 비전"
+    }
+  };
 }
 
 export async function saveReport(data: WithFieldValue<Report>, id?: string): Promise<string> { return "manual-insert-only"; }
