@@ -235,6 +235,7 @@ function getSubjectGroup(subject: string): string[] {
 
 // --- 2. 새로 교체되는 getReports 함수 (Supabase + 계층형 검색) ---
 // --- (이 부분만 덮어쓰기 하세요!) ---
+// --- (이 부분만 다시 덮어쓰기 하세요!) ---
 export async function getReports(filters?: {
   subject?: string;
   major_unit?: string;
@@ -245,19 +246,19 @@ export async function getReports(filters?: {
 }): Promise<any[]> { 
   let query = supabase.from('premium_reports').select('*');
 
-  // 1. 계층형 과목 필터 (OR + 부분 일치 검색으로 완벽 해결!)
+  // 1. 계층형 과목 필터 (Supabase or 쿼리에서는 와일드카드로 % 대신 * 를 써야 합니다!)
   if (filters?.subject) {
     const targetSubjects = getSubjectGroup(filters.subject.trim());
-    // 배열의 단어 중 하나라도 포함되면(ilike) 찾도록 OR 쿼리 생성
-    // 예: "subject.ilike.%물리%,subject.ilike.%물리학%"
-    const orQuery = targetSubjects.map(sub => `subject.ilike.%${sub}%`).join(',');
+    // 수정됨: % 기호를 * 기호로 변경
+    const orQuery = targetSubjects.map(sub => `subject.ilike.*${sub}*`).join(',');
     query = query.or(orQuery);
   }
 
-  // 2. 대단원 필터 ("II. 전기와 자기" -> "전기와 자기" 로 앞의 로마자 떼고 비교)
+  // 2. 대단원 필터 ("II. 전기와 자기" -> "전기와 자기")
   if (filters?.major_unit) {
     const cleanMajorUnit = filters.major_unit.replace(/^([A-Za-zIVX]+|\d+)\.\s*/, '').trim();
-    query = query.ilike('large_unit_name', `%${cleanMajorUnit}%`);
+    // 단일 메서드에서는 %가 작동하지만, 안전하게 *로 통일
+    query = query.ilike('large_unit_name', `*${cleanMajorUnit}*`);
   }
 
   // 3. 출판사 필터는 의도적으로 무시!
@@ -278,6 +279,7 @@ export async function getReports(filters?: {
   }
   return data;
 }
+
 /** 인기 보고서 Top N 조회 (홈 Trending 섹션용) */
 // --- (기존 getTrendingReports, getReportById 교체) ---
 export async function getTrendingReports(n: number = 3): Promise<any[]> {
