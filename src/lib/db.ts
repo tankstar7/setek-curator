@@ -1,5 +1,5 @@
 /**
- * Firestore & Supabase 통합 데이터 액세스 유틸리티 (타입 에러 완벽 픽스)
+ * Firestore & Supabase 통합 데이터 액세스 유틸리티 (화면 타입 호환성 보강 버전)
  */
 
 import {
@@ -14,11 +14,43 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ─────────────────────────────────────────────
-// 타입 정의 (에러의 원인이었던 advanced_required 복구!)
+// 타입 정의 (Explorer 화면 에러 방지를 위해 구조를 더 구체화함)
 // ─────────────────────────────────────────────
-export type Curriculum = { id?: string; subject: string; course: string; major_unit: string; minor_units: string[]; textbook_analysis: any; };
-export type SkillTree = { id?: string; major_name: string; description?: string; core_required: string[]; advanced_required?: string[]; ai_recommended_combo: any[]; };
-export type Report = { id?: string; trend_keyword: string; report_title: string; subject: string; major_unit: string; publisher: string; target_majors: string[]; views?: number; golden_template: any; };
+export type Curriculum = { 
+  id?: string; 
+  subject: string; 
+  course: string; 
+  major_unit: string; 
+  minor_units: string[]; 
+  textbook_analysis: {
+    core_concepts: string[];
+    publisher_specifics: {
+      publisher: string;
+      focus_point: string;
+    }[];
+  }; 
+};
+
+export type SkillTree = { 
+  id?: string; 
+  major_name: string; 
+  description?: string; 
+  core_required: string[]; 
+  advanced_required?: string[]; 
+  ai_recommended_combo: any[]; 
+};
+
+export type Report = { 
+  id?: string; 
+  trend_keyword: string; 
+  report_title: string; 
+  subject: string; 
+  major_unit: string; 
+  publisher: string; 
+  target_majors: string[]; 
+  views?: number; 
+  golden_template: any; 
+};
 
 const COL = { CURRICULUM: "curriculum", SKILL_TREES: "skill_trees", REPORTS: "reports_db" } as const;
 function withId<T>(id: string, data: T): T & { id: string } { return { id, ...data }; }
@@ -35,7 +67,7 @@ export async function getAllCurricula(): Promise<Curriculum[]> { const snap = aw
 export async function saveSkillTree(data: WithFieldValue<SkillTree>): Promise<void> { const rawId = data.major_name as string; const safeId = rawId.replace(/\//g, "_"); await setDoc(doc(db, COL.SKILL_TREES, safeId), data); }
 
 // ─────────────────────────────────────────────
-// Reports (Supabase 100% 무결점 통신)
+// Reports
 // ─────────────────────────────────────────────
 function cleanText(text: string) {
   if (!text) return '';
