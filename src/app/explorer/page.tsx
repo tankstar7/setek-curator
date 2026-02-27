@@ -400,9 +400,10 @@ export default function ExplorerPage() {
           )
           .order("id", { ascending: false });
 
-        // subject: 계층형 그룹 ilike 매칭 (예: "과학" → 물리학 I / 화학 등 하위 과목 모두 포함)
-        if (selSubject) {
-          const subjectGroup = getSubjectGroup(selSubject);
+        // subject: selCourse가 있으면 해당 과목(정밀 매칭), 없으면 selSubject(교과군 전체)
+        const activeSubject = selCourse ?? selSubject;
+        if (activeSubject) {
+          const subjectGroup = getSubjectGroup(activeSubject);
           const orQ = subjectGroup.map((s) => `subject.ilike.%${s}%`).join(",");
           query = query.or(orQ);
         }
@@ -415,7 +416,7 @@ export default function ExplorerPage() {
           query = query.ilike("title", `%${searchQuery.trim()}%`);
 
         console.log('[Explorer] Supabase premium_reports 쿼리 시작', {
-          selSubject, selMajorUnit, searchQuery: searchQuery.trim() || '(없음)',
+          selSubject, selCourse, selMajorUnit, searchQuery: searchQuery.trim() || '(없음)',
         });
 
         const { data, error } = await query;
@@ -454,7 +455,7 @@ export default function ExplorerPage() {
       cancelled = true; // StrictMode 이중 실행 / 빠른 필터 변경 방어
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-  }, [selSubject, selMajorUnit, searchQuery]);
+  }, [selSubject, selCourse, selMajorUnit, searchQuery]);
 
   const loading = curriculaLoading;
 

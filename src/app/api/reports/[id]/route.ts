@@ -17,7 +17,16 @@ export async function GET(
   const { id } = await params;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const adminClient = getSupabaseAdmin();
+  let adminClient;
+  try {
+    adminClient = getSupabaseAdmin();
+  } catch (err) {
+    console.error("[api/reports] 서버 설정 오류:", err);
+    return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+  }
+
+  // 숫자형 id(bigint PK)는 number로 변환, UUID/문자열은 그대로 사용
+  const queryId: string | number = /^\d+$/.test(id) ? Number(id) : id;
 
   // ① 보고서 조회 (service role — RLS 무관하게 항상 조회 가능)
   const { data: report, error: reportErr } = await adminClient
@@ -25,7 +34,7 @@ export async function GET(
     .select(
       "id, title, subject, preview_content, main_content, target_majors, access_tier, large_unit_name, small_unit_name"
     )
-    .eq("id", id)
+    .eq("id", queryId)
     .single();
 
   if (reportErr || !report) {
