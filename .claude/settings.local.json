@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /c/Users/USER/Desktop/setek-web && npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git 2>&1)",
+      "Bash(cd /c/Users/USER/Desktop && echo \"n\" | npx create-next-app@latest setek-temp --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git 2>&1)",
+      "Bash(cp:*)",
+      "Bash(rsync:*)",
+      "Bash(cd:*)",
+      "Bash(tail:*)",
+      "Bash(cd /c/Users/USER/Desktop/setek-web && echo \"n\" | npx shadcn@latest init --defaults 2>&1)",
+      "Bash(cd /c/Users/USER/Desktop/setek-web && npx shadcn@latest add button card badge input 2>&1)",
+      "Bash(cd /c/Users/USER/Desktop/setek-web && npm run build 2>&1)",
+      "Bash(cd /c/Users/USER/Desktop/setek-web && npx tsc --noEmit 2>&1)",
+      "Bash(cd /c/Users/USER/Desktop/setek-web && npm run seed 2>&1)",
+      "Bash(cd /c/Users/USER/Desktop/setek-web && npx shadcn@latest add skeleton 2>&1)",
+      "Bash(echo DONE:*)",
+      "Bash(cd /c/Users/USER/desktop/setek-web && grep -n \"forceSignOut\\\\|authUtils\\\\|5_000\\\\|8_000\\\\|loadError\\\\|fetchError\\\\|curriculaError\\\\|authTimer\\\\|loadTimer\\\\|fetchTimer\" src/components/Navbar.tsx src/lib/authUtils.ts src/app/explorer/page.tsx src/app/reports/\\\\[id\\\\]/page.tsx src/app/mypage/page.tsx 2>&1)",
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(head:*)",
+      "Bash(cd \"C:/Users/USER/desktop/setek-web\" && npx tsc --noEmit 2>&1)",
+      "Bash(echo INSTALLED:*)"
+    ]
+  }
+}
