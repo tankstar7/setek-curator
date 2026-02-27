@@ -1,5 +1,5 @@
 /**
- * Firestore & Supabase 통합 데이터 액세스 유틸리티 (궁극의 프론트엔드 호환 및 변장 패치)
+ * Firestore & Supabase 통합 데이터 액세스 유틸리티 (궁극의 정규화 및 에러 픽스)
  */
 
 import {
@@ -73,8 +73,19 @@ export async function saveSkillTree(data: WithFieldValue<SkillTree>): Promise<vo
 }
 
 // ─────────────────────────────────────────────
-// Reports (프론트엔드 100% 무사 통과 패치)
+// Reports (데이터 정규화 및 ID 에러 완벽 픽스)
 // ─────────────────────────────────────────────
+
+// ✨ 핵심 1: 화면의 'Curriculum 기준표'와 100% 동일하게 이름을 맞춰주는 정규화 함수
+function normalizeSubjectForUI(raw: string): string {
+  if (!raw) return '기타';
+  let clean = raw.replace(/[IVXⅠⅡ\s]+$/, '').trim(); // '물리학 I ' -> '물리학'
+  if (clean === '물리학') return '물리'; // '물리'로 변경하여 프론트엔드 검열 통과!
+  if (clean === '생명') return '생명과학';
+  if (clean === '지구') return '지구과학';
+  if (clean === '화학반응의 세계') return '화학 반응의 세계';
+  return clean;
+}
 
 function getSubjectGroup(subject: string): string[] {
   if (!subject) return [];
@@ -95,11 +106,10 @@ export async function getReports(filters?: {
 
   let results = data || [];
 
-  // 백엔드에서 1차로 너그럽게 걸러냅니다.
   if (filters?.subject) {
     const targetSubjects = getSubjectGroup(filters.subject);
     results = results.filter(item => {
-      const dbSub = (item.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim();
+      const dbSub = normalizeSubjectForUI(item.subject);
       return targetSubjects.some(t => dbSub.includes(t) || t.includes(dbSub));
     });
   }
@@ -116,28 +126,20 @@ export async function getReports(filters?: {
     results = results.filter(item => (item.target_majors || []).some((m: string) => m.includes(filters.target_major!)));
   }
 
-  // ✨ 핵심: 프론트엔드가 버리지 않도록, 화면이 요구하는 이름표로 무조건 덮어씌우고 에러 방지 서랍을 달아줍니다.
   return results.map(item => {
-    const dbSubject = (item.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim();
-    const order = item.large_unit_order || 1;
-    const roman = ['I', 'II', 'III', 'IV', 'V', 'VI'][order - 1] || 'I';
-    const dbMajor = `${roman}. ${item.large_unit_name || '대단원 없음'}`;
-
     return {
       id: item.id?.toString(),
       trend_keyword: item.trend_keyword || '최신 트렌드',
       report_title: item.title || '제목 없음',
       
-      // 화면이 '과학'을 필터로 걸었다면 데이터의 이름을 아예 '과학'으로 속여서 보냄 (프론트엔드 검열 통과)
-      subject: filters?.subject ? filters.subject : dbSubject,
-      major_unit: filters?.major_unit ? filters.major_unit : dbMajor,
+      // 화면이 뻗지 않도록 무조건 Curriculum과 일치하는 '물리' 등으로 넘겨줌!
+      subject: normalizeSubjectForUI(item.subject),
+      major_unit: (item.large_unit_name || '').replace(/^([A-Za-zIVX]+|\d+)\.\s*/, '').trim(),
       
-      // 어떤 출판사를 클릭해도 화면이 안 뻗게 무조건 맞춰줌
-      publisher: filters?.publisher ? filters.publisher : '미래엔',
-      target_majors: filters?.target_major ? [filters.target_major] : (item.target_majors || []),
+      publisher: '미래엔',
+      target_majors: item.target_majors || [],
       views: item.views || 0,
       
-      // 상세페이지(/lab) 접속 시 크래시 완벽 방지
       golden_template: {
         motivation: item.preview_content || item.main_content || "탐구 동기",
         basic_knowledge: item.main_content || "기초 지식",
@@ -158,20 +160,16 @@ export async function getTrendingReports(n: number = 3): Promise<any[]> {
 }
 
 export async function getReportById(id: string): Promise<any | null> {
-  const numericId = parseInt(id, 10);
-  const queryId = isNaN(numericId) ? id : numericId;
-  const { data, error } = await supabase.from('premium_reports').select('*').eq('id', queryId).single();
+  // ✨ 핵심 2: parseInt를 완벽히 제거하여 상세페이지 크래시(UUID 파싱 에러) 원천 차단
+  const { data, error } = await supabase.from('premium_reports').select('*').eq('id', id).single();
   if (error || !data) return null; 
-
-  const order = data.large_unit_order || 1;
-  const roman = ['I', 'II', 'III', 'IV', 'V', 'VI'][order - 1] || 'I';
 
   return {
     ...data,
     id: data.id?.toString(),
     report_title: data.title || '제목 없음',
-    subject: (data.subject || '').replace(/[IVXⅠⅡ\s]+$/, '').trim(),
-    major_unit: `${roman}. ${data.large_unit_name || '대단원 없음'}`,
+    subject: normalizeSubjectForUI(data.subject),
+    major_unit: (data.large_unit_name || '').replace(/^([A-Za-zIVX]+|\d+)\.\s*/, '').trim(),
     publisher: '미래엔',
     golden_template: {
       motivation: data.preview_content || data.main_content || "탐구 동기",
