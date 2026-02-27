@@ -234,6 +234,7 @@ function getSubjectGroup(subject: string): string[] {
 }
 
 // --- 2. 새로 교체되는 getReports 함수 (Supabase + 계층형 검색) ---
+// --- (이 부분만 덮어쓰기 하세요!) ---
 export async function getReports(filters?: {
   subject?: string;
   major_unit?: string;
@@ -244,18 +245,22 @@ export async function getReports(filters?: {
 }): Promise<any[]> { 
   let query = supabase.from('premium_reports').select('*');
 
-  // 1. 계층형 과목 필터 (과학 -> 물리, 화학 등 자동 포함)
+  // 1. 계층형 과목 필터 (OR + 부분 일치 검색으로 완벽 해결!)
   if (filters?.subject) {
     const targetSubjects = getSubjectGroup(filters.subject.trim());
-    query = query.in('subject', targetSubjects);
+    // 배열의 단어 중 하나라도 포함되면(ilike) 찾도록 OR 쿼리 생성
+    // 예: "subject.ilike.%물리%,subject.ilike.%물리학%"
+    const orQuery = targetSubjects.map(sub => `subject.ilike.%${sub}%`).join(',');
+    query = query.or(orQuery);
   }
 
-  // 2. 대단원 필터
+  // 2. 대단원 필터 ("II. 전기와 자기" -> "전기와 자기" 로 앞의 로마자 떼고 비교)
   if (filters?.major_unit) {
-    query = query.eq('large_unit_name', filters.major_unit);
+    const cleanMajorUnit = filters.major_unit.replace(/^([A-Za-zIVX]+|\d+)\.\s*/, '').trim();
+    query = query.ilike('large_unit_name', `%${cleanMajorUnit}%`);
   }
 
-  // 3. 출판사 필터는 의도적으로 무시! (어떤 출판사를 골라도 검색되도록 함)
+  // 3. 출판사 필터는 의도적으로 무시!
 
   // 4. 전공 필터 (배열 포함 여부 검사)
   if (filters?.target_major) {
@@ -273,7 +278,6 @@ export async function getReports(filters?: {
   }
   return data;
 }
-
 /** 인기 보고서 Top N 조회 (홈 Trending 섹션용) */
 // --- (기존 getTrendingReports, getReportById 교체) ---
 export async function getTrendingReports(n: number = 3): Promise<any[]> {
