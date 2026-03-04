@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -7,7 +9,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
 } from "recharts";
-import { updateUserTier, type Tier } from "./actions";
+import { updateUserTier, scheduleUserDeletion, cancelUserDeletion, type Tier } from "./actions";
 
 // ── 타입 ──────────────────────────────────────────────────────────────────────
 interface UserProfile {
@@ -17,9 +19,13 @@ interface UserProfile {
   account_tier: string;
   created_at: string;
   school_name: string | null;
+  company_name: string | null; // 추가
   region: string | null;
+  phone_number: string | null; // 추가
   dream_majors: string[] | null;
   interest_subjects: string[] | null;
+  deletion_scheduled_at: string | null;
+  privacy_consent_at: string | null; // 추가
 }
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
@@ -95,14 +101,33 @@ function UserModal({
   currentUserId,
   onClose,
   onChangeTier,
+  onScheduleDeletion,
+  onCancelDeletion,
+  onImmediateDeletion,
   updating,
 }: {
   user: UserProfile;
   currentUserId: string | null;
   onClose: () => void;
   onChangeTier: (u: UserProfile, newTier: string) => void;
+  onScheduleDeletion: (u: UserProfile) => void;
+  onCancelDeletion: (u: UserProfile) => void;
+  onImmediateDeletion: (u: UserProfile) => void;
   updating: boolean;
 }) {
+  // 남은 시간 계산 (72시간 유예)
+  const remainingTime = useMemo(() => {
+    if (!user.deletion_scheduled_at) return null;
+    const end = new Date(user.deletion_scheduled_at).getTime();
+    const now = new Date().getTime();
+    const diff = end - now;
+    if (diff <= 0) return "삭제 처리 대기 중";
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}시간 ${mins}분 남음`;
+  }, [user.deletion_scheduled_at]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm"
@@ -131,18 +156,26 @@ function UserModal({
         </div>
 
         {/* 모달 바디 */}
-        <div className="space-y-4 px-6 py-5">
+        <div className="max-h-[70vh] overflow-y-auto space-y-4 px-6 py-5">
           {/* 기본 정보 */}
           <div className="grid grid-cols-2 gap-3">
             {[
               { label: "구분",    value: user.role ?? "—" },
               { label: "지역",    value: user.region ?? "—" },
               { label: "학교",    value: user.school_name ?? "—" },
+              { label: "회사/학원", value: user.company_name ?? "—" },
+              { label: "휴대폰",   value: user.phone_number ?? "—" },
               {
                 label: "가입일",
                 value: new Date(user.created_at).toLocaleDateString("ko-KR", {
                   year: "numeric", month: "2-digit", day: "2-digit",
                 }),
+              },
+              {
+                label: "동의일",
+                value: user.privacy_consent_at ? new Date(user.privacy_consent_at).toLocaleDateString("ko-KR", {
+                  year: "numeric", month: "2-digit", day: "2-digit",
+                }) : "—",
               },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-xl bg-gray-50 px-4 py-3">
@@ -192,6 +225,52 @@ function UserModal({
               </div>
             ) : (
               <p className="text-xs text-gray-400">미입력</p>
+            )}
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">계정 관리</p>
+            {user.deletion_scheduled_at ? (
+              <div className="rounded-xl border border-red-100 bg-red-50 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold text-red-700 flex items-center gap-1.5">
+                    <span className="animate-pulse">⏳</span> 계정 삭제 예약됨
+                  </p>
+                  <span className="text-[11px] font-bold text-red-600 bg-white px-2 py-0.5 rounded-full border border-red-100">
+                    {remainingTime}
+                  </span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-red-500 mb-3">
+                  이 계정은 관리자에 의해 삭제 예약되었습니다. 72시간 유예 기간이 지나면 데이터가 영구 삭제됩니다.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onCancelDeletion(user)}
+                    disabled={updating}
+                    className="flex-1 rounded-lg bg-white py-2 text-xs font-bold text-red-600 border border-red-200 hover:bg-red-100 transition disabled:opacity-50"
+                  >
+                    삭제 예약 취소하기
+                  </button>
+                  <button
+                    onClick={() => onImmediateDeletion(user)}
+                    disabled={updating}
+                    className="flex-1 rounded-lg bg-red-600 py-2 text-xs font-bold text-white hover:bg-red-700 transition disabled:opacity-50"
+                  >
+                    즉시 삭제하기
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => onScheduleDeletion(user)}
+                disabled={updating || user.id === currentUserId}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-3 text-xs font-bold text-gray-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-gray-500"
+              >
+                <span>🚫</span> 회원 계정 삭제 (72시간 유예)
+              </button>
+            )}
+            {user.id === currentUserId && (
+              <p className="mt-2 text-center text-[10px] text-gray-400">관리자 본인 계정은 삭제할 수 없습니다.</p>
             )}
           </div>
         </div>
@@ -274,6 +353,72 @@ export default function AdminPage() {
     setUpdating(null);
   };
 
+  // ── 삭제 예약 핸들러 ─────────────────────────────────────────────────────────
+  const handleScheduleDeletion = async (targetUser: UserProfile) => {
+    if (!token) return;
+    const confirmed = window.confirm(
+      `「${targetUser.nickname ?? targetUser.id}」 유저의 계정을 삭제 예약하시겠습니까?\n\n` +
+      `72시간의 유예 기간이 부여되며, 그 이후에는 모든 데이터가 영구 삭제됩니다.`
+    );
+    if (!confirmed) return;
+
+    setUpdating(targetUser.id);
+    const result = await scheduleUserDeletion(token, targetUser.id);
+
+    if (result.ok) {
+      const scheduledAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+      setUsers((prev) =>
+        prev.map((u) => u.id === targetUser.id ? { ...u, deletion_scheduled_at: scheduledAt } : u)
+      );
+      setSelectedUser((prev) =>
+        prev?.id === targetUser.id ? { ...prev, deletion_scheduled_at: scheduledAt } : prev
+      );
+    } else {
+      alert(`예약 실패: ${result.error ?? "알 수 없는 오류"}`);
+    }
+    setUpdating(null);
+  };
+
+  // ── 삭제 취소 핸들러 ─────────────────────────────────────────────────────────
+  const handleCancelDeletion = async (targetUser: UserProfile) => {
+    if (!token) return;
+    setUpdating(targetUser.id);
+    const result = await cancelUserDeletion(token, targetUser.id);
+
+    if (result.ok) {
+      setUsers((prev) =>
+        prev.map((u) => u.id === targetUser.id ? { ...u, deletion_scheduled_at: null } : u)
+      );
+      setSelectedUser((prev) =>
+        prev?.id === targetUser.id ? { ...prev, deletion_scheduled_at: null } : prev
+      );
+    } else {
+      alert(`취소 실패: ${result.error ?? "알 수 없는 오류"}`);
+    }
+    setUpdating(null);
+  };
+
+  // ── 즉시 삭제 핸들러 ─────────────────────────────────────────────────────────
+  const handleImmediateDeletion = async (targetUser: UserProfile) => {
+    if (!token) return;
+    const confirmed = window.confirm(
+      `🚨 [경고] 계정 즉시 삭제\n\n「${targetUser.nickname ?? targetUser.id}」 유저의 모든 정보를 지금 즉시 삭제하시겠습니까?\n\n이 작업은 72시간 유예 없이 즉시 실행되며, 프로필 정보와 로그인 계정 자체를 완전히 파괴합니다. 이 작업은 절대로 되돌릴 수 없습니다.`
+    );
+    if (!confirmed) return;
+
+    setUpdating(targetUser.id);
+    const result = await deleteUserPermanently(token, targetUser.id);
+
+    if (result.ok) {
+      alert("해당 계정이 완전히 삭제되었습니다.");
+      setUsers((prev) => prev.filter((u) => u.id !== targetUser.id));
+      setSelectedUser(null);
+    } else {
+      alert(`삭제 실패: ${result.error ?? "알 수 없는 오류"}`);
+    }
+    setUpdating(null);
+  };
+
   // ── 통계 계산 ────────────────────────────────────────────────────────────────
   const total    = users.length;
   const premium  = users.filter((u) => u.account_tier === "premium").length;
@@ -324,9 +469,16 @@ export default function AdminPage() {
               <h1 className="text-2xl font-extrabold tracking-tight">Dashboard</h1>
               <p className="mt-1 text-sm text-blue-200">가입자 현황 · 티어 관리 · 데이터 분석</p>
             </div>
-            <p className="text-xs text-blue-300 hidden sm:block">
-              {new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
-            </p>
+            <div className="flex flex-col items-end gap-2 hidden sm:flex">
+              <Link href="/onboarding">
+                <Button size="sm" variant="outline" className="h-8 border-blue-400/50 bg-blue-400/10 text-[11px] font-bold text-blue-100 hover:bg-blue-400/20">
+                  ✨ 온보딩 페이지
+                </Button>
+              </Link>
+              <p className="text-xs text-blue-300">
+                {new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
+              </p>
+            </div>
           </div>
         </section>
 
@@ -377,11 +529,12 @@ export default function AdminPage() {
                   <p className="mb-4 text-[11px] text-gray-400">가입자가 선택한 과목 분포 (복수 선택)</p>
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
-                      <Pie data={subjectData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={90}
+                      <Pie data={subjectData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={75}
                         label={({ name, percent }: { name?: string; percent?: number }) =>
                           (percent ?? 0) > 0.05 ? `${name} ${((percent ?? 0) * 100).toFixed(0)}%` : ""
                         }
                         labelLine={false}
+                        style={{ fontSize: "10px", fontWeight: "600" }}
                       >
                         {subjectData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                       </Pie>
@@ -464,6 +617,9 @@ export default function AdminPage() {
           currentUserId={currentUserId}
           onClose={() => setSelectedUser(null)}
           onChangeTier={handleTierChange}
+          onScheduleDeletion={handleScheduleDeletion}
+          onCancelDeletion={handleCancelDeletion}
+          onImmediateDeletion={handleImmediateDeletion}
           updating={updating === selectedUser.id}
         />
       )}

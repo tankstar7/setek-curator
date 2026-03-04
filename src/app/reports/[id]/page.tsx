@@ -32,6 +32,7 @@ export default function ReportDetailPage() {
   const [hasAccess, setHasAccess]     = useState(false);
   // accountTier: 잠금 UI 메시지 분기용 (guest / user / premium / admin)
   const [accountTier, setAccountTier] = useState<string>("guest");
+  const [isSaved, setIsSaved]         = useState(false); // 저장 상태 추가
 
   useEffect(() => {
     if (!id) return;
@@ -39,24 +40,17 @@ export default function ReportDetailPage() {
 
     const fetchReport = async (): Promise<void> => {
       try {
-        // ── 세션 토큰 취득 (없어도 괜찮음 — API가 guest로 처리) ──────────
+        // ── ① 세션 토큰 취득 ──
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token ?? null;
 
-        // ── 서버 API 호출: 권한 검증 + main_content 마스킹 모두 서버에서 처리 ──
+        // ── ② 서버 API 호출 ──
         const res = await fetch(`/api/reports/${id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 
         if (!live) return;
-
-        if (res.status === 404) {
-          setNotFound(true);
-          setLoading(false);
-          return;
-        }
-
-        if (!res.ok) {
+        if (res.status === 404 || !res.ok) {
           setNotFound(true);
           setLoading(false);
           return;
@@ -66,7 +60,28 @@ export default function ReportDetailPage() {
         setReport(json.report);
         setHasAccess(json.hasAccess);
         setAccountTier(json.accountTier ?? "guest");
+
+        // ── ③ 저장 상태 확인 (로그인 유저인 경우) ──
+        if (session?.user?.id) {
+          const { data: savedData } = await supabase
+            .from("report_user_saved")
+            .select("id")
+            .eq("user_id", session.user.id)
+            .eq("report_id", id)
+            .maybeSingle();
+          if (savedData) setIsSaved(true);
+        }
+
         setLoading(false);
+
+        // ── ④ 열람 기록 남기기 (로그인 유저인 경우) ──
+        if (session?.user?.id) {
+          await supabase.from("report_user_history").upsert({
+            user_id: session.user.id,
+            report_id: id,
+            viewed_at: new Date().toISOString(),
+          }, { onConflict: 'user_id, report_id' });
+        }
       } catch {
         if (!live) return;
         setNotFound(true);
@@ -77,6 +92,46 @@ export default function ReportDetailPage() {
     fetchReport();
     return () => { live = false; };
   }, [id]);
+
+  // 저장 토글 핸들러
+  const handleToggleSave = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert("로그인이 필요한 기능입니다.");
+        return;
+      }
+
+      if (isSaved) {
+        const { error } = await supabase
+          .from("report_user_saved")
+          .delete()
+          .eq("user_id", session.user.id)
+          .eq("report_id", id);
+        
+        if (error) throw error;
+        setIsSaved(false);
+        alert("보고서 저장을 취소했습니다.");
+      } else {
+        const { error } = await supabase
+          .from("report_user_saved")
+          .insert({ user_id: session.user.id, report_id: id });
+        
+        if (error) {
+          if (error.code === '23505') { // 중복 저장 에러 처리
+            setIsSaved(true);
+            return;
+          }
+          throw error;
+        }
+        setIsSaved(true);
+        alert("보고서를 저장했습니다. 마이페이지에서 확인하실 수 있습니다.");
+      }
+    } catch (err: any) {
+      console.error("[ReportDetail] 저장 토글 에러:", err);
+      alert(`처리 중 오류가 발생했습니다: ${err.message || '알 수 없는 오류'}`);
+    }
+  };
 
   // ── 로딩 ───────────────────────────────────────────────────────────────────
   if (loading) {
@@ -111,17 +166,30 @@ export default function ReportDetailPage() {
 
         {/* ── 상단 헤더 ── */}
         <div className="bg-slate-900 px-10 py-8 text-white">
-          <div className="mb-3 flex items-center gap-3 text-sm font-semibold tracking-wide text-blue-400">
-            <span className="rounded-full border border-blue-700/50 bg-blue-900/50 px-3 py-1">
-              {report.subject}
-            </span>
-            <span>•</span>
-            <span>{report.target_majors[0]} 추천</span>
-            {isPremiumReport && (
-              <span className="rounded-full bg-amber-500/20 border border-amber-400/30 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
-                PREMIUM
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-3 text-sm font-semibold tracking-wide text-blue-400">
+              <span className="rounded-full border border-blue-700/50 bg-blue-900/50 px-3 py-1">
+                {report.subject}
               </span>
-            )}
+              <span>•</span>
+              <span>{report.target_majors[0]} 추천</span>
+              {isPremiumReport && (
+                <span className="rounded-full bg-amber-500/20 border border-amber-400/30 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
+                  PREMIUM
+                </span>
+              )}
+            </div>
+            {/* 저장 버튼 추가 */}
+            <button
+              onClick={handleToggleSave}
+              className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                isSaved 
+                  ? "bg-blue-600 text-white shadow-lg" 
+                  : "bg-white/10 text-blue-200 hover:bg-white/20"
+              }`}
+            >
+              {isSaved ? "🔖 저장됨" : "📂 보고서 저장"}
+            </button>
           </div>
           <h1 className="mb-2 text-3xl font-extrabold leading-tight">
             {report.title}

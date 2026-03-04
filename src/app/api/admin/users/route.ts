@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("profiles")
-    .select("id, nickname, role, account_tier, created_at, school_name, region, dream_majors, interest_subjects")
+    .select("id, nickname, role, account_tier, created_at, school_name, region, dream_majors, interest_subjects, phone_number, company_name, privacy_consent_at, deletion_scheduled_at")
     .order("created_at", { ascending: false });
 
   if (error) {

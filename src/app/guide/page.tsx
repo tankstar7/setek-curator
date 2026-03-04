@@ -2,6 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SectionTitle } from "@/components/SectionTitle";
+import { InfoCard } from "@/components/InfoCard";
 import Link from "next/link";
 import {
   GraduationCap,
@@ -313,65 +315,40 @@ export default function GuidePage() {
 
         {/* ───────────── 2. 핵심 요약 카드 ───────────── */}
         <section>
-          <div className="mb-10 text-center">
-            <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-blue-600">
-              고교학점제 핵심 요약
-            </p>
-            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-              입시판이 바뀌었습니다
-            </h2>
-            <p className="mt-3 text-sm text-gray-500">
-              고교학점제가 바꿔놓은 세 가지 핵심 패러다임 변화
-            </p>
-          </div>
+          <SectionTitle 
+            label="고교학점제 핵심 요약"
+            title="입시판이 바뀌었습니다"
+            description="고교학점제가 바꿔놓은 세 가지 핵심 패러다임 변화"
+          />
 
           <div className="grid gap-6 sm:grid-cols-3">
             {CREDIT_CARDS.map((card) => (
-              <Card
+              <InfoCard
                 key={card.title}
-                className="border-gray-200 transition-shadow hover:shadow-md"
+                icon={card.icon}
+                badge={card.badge}
+                title={card.title}
               >
-                <CardContent className="p-6">
-                  <div className="mb-4 flex items-start gap-3">
-                    <div className="rounded-xl bg-gray-100 p-2.5 shrink-0">
-                      {card.icon}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                        {card.badge}
-                      </p>
-                      <h3 className="mt-0.5 text-base font-bold text-gray-900">
-                        {card.title}
-                      </h3>
-                    </div>
-                  </div>
-                  <ul className="space-y-2.5">
-                    {card.points.map((p) => (
-                      <li key={p} className="flex items-start gap-2 text-sm text-gray-600">
-                        <ChevronRight className="mt-0.5 size-4 shrink-0 text-blue-500" />
-                        {p}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
+                <ul className="mt-4 space-y-2.5">
+                  {card.points.map((p) => (
+                    <li key={p} className="flex items-start gap-2 text-sm text-gray-600">
+                      <ChevronRight className="mt-0.5 size-4 shrink-0 text-blue-500" />
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </InfoCard>
             ))}
           </div>
         </section>
 
         {/* ───────────── 3. 15개정 vs 22개정 비교 테이블 ───────────── */}
         <section>
-          <div className="mb-10 text-center">
-            <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-blue-600">
-              교육과정 핵심 비교
-            </p>
-            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-              15개정 vs 22개정, 무엇이 달라졌나
-            </h2>
-            <p className="mt-3 text-sm text-gray-500">
-              이공계 진로를 목표로 한다면 반드시 확인해야 할 7가지 변경사항
-            </p>
-          </div>
+          <SectionTitle 
+            label="교육과정 핵심 비교"
+            title="15개정 vs 22개정, 무엇이 달라졌나"
+            description="이공계 진로를 목표로 한다면 반드시 확인해야 할 7가지 변경사항"
+          />
 
           <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
             <table className="w-full text-sm">
@@ -420,14 +397,10 @@ export default function GuidePage() {
 
         {/* ───────────── 4. 수학·과학 딥 다이브 탭 ───────────── */}
         <section>
-          <div className="mb-8 text-center">
-            <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-blue-600">
-              과목 편제 딥 다이브
-            </p>
-            <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-              수학·과학, 구체적으로 무엇이 어떻게 바뀌었나
-            </h2>
-          </div>
+          <SectionTitle 
+            label="과목 편제 딥 다이브"
+            title="수학·과학, 구체적으로 무엇이 어떻게 바뀌었나"
+          />
 
           {/* ── 2022 개정 과목 매트릭스 ── */}
           <div className="mb-4 overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">

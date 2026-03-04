@@ -10,7 +10,7 @@ import type { Report } from "@/lib/db";
 import { useEffect, useState } from 'react'; // useState 추가
 
 export default function Home() {
-  const [trending, setTrending] = useState<Report[]>([]);
+  const [trending, setTrending] = useState<any[]>([]);
 
   // 1. 카톡 탈출 및 데이터 가져오기 로직
   useEffect(() => {
@@ -32,6 +32,24 @@ export default function Home() {
       지구과학: "🌍", 수학: "📐", 정보: "💻",
     };
     return map[subject] || "📚";
+  }
+
+  // 3. 키워드 렌더링 함수
+  function renderKeywords(keywords: any) {
+    if (!keywords) return null;
+    const kwArray = Array.isArray(keywords) 
+      ? keywords 
+      : typeof keywords === 'string' 
+        ? keywords.split(',').map(k => k.trim())
+        : [];
+    
+    return (
+      <div className="mb-2 flex flex-wrap gap-1">
+        {kwArray.map((kw, i) => (
+          <span key={i} className="text-xs font-semibold text-blue-600">#{kw}</span>
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -116,7 +134,7 @@ export default function Home() {
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {trending.map((report, index) => (
-                <Link key={report.id} href={`/lab?keyword=${encodeURIComponent(report.trend_keyword)}`}>
+                <Link key={report.id} href={`/reports/${report.id}`}>
                   <Card className="group h-full cursor-pointer border-gray-200 transition-all hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-2">
@@ -126,12 +144,12 @@ export default function Home() {
                       <Badge variant="secondary" className="w-fit text-xs">{report.subject}</Badge>
                     </CardHeader>
                     <CardContent className="pt-0">
-                      <p className="mb-2 text-sm font-semibold text-blue-600">#{report.trend_keyword}</p>
+                      {renderKeywords(report.keywords)}
                       <h3 className="mb-3 text-sm font-medium leading-relaxed text-gray-800 group-hover:text-[#1e3a5f]">
-                        {report.report_title}
+                        {report.title}
                       </h3>
                       <div className="flex flex-wrap gap-1">
-                        {report.target_majors.slice(0, 2).map((major) => (
+                        {(report.target_majors || []).slice(0, 2).map((major: any) => (
                           <span key={major} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
                             {major}
                           </span>

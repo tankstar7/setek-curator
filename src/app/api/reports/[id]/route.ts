@@ -38,6 +38,13 @@ export async function GET(
     .single();
 
   if (reportErr || !report) {
+    console.error("[api/reports] DB 조회 실패 ─────────────────");
+    console.error("  id (원본)  :", id);
+    console.error("  queryId    :", queryId);
+    console.error("  error.code :", reportErr?.code);
+    console.error("  error.msg  :", reportErr?.message);
+    console.error("  error.hint :", reportErr?.hint);
+    console.error("─────────────────────────────────────────────");
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

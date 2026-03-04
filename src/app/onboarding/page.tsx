@@ -33,12 +33,14 @@ export default function OnboardingPage() {
   const [region,       setRegion]       = useState("");
   const [schoolName,   setSchoolName]   = useState("");
   const [companyName,  setCompanyName]  = useState("");
+  const [phone,        setPhone]        = useState(""); // 휴대폰 번호 추가
 
   // Step 2
   const [dreamMajors, setDreamMajors] = useState<string[]>([]);
 
   // Step 3
   const [subjects, setSubjects] = useState<string[]>([]);
+  const [consent,  setConsent]  = useState(false); // 개인정보 동의 추가
 
   // ── 초기 인증 확인 ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -46,11 +48,11 @@ export default function OnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.replace("/login"); return; }
 
-      // .maybeSingle() — 신규 유저(0 rows)여도 406 에러 없이 null 반환
       const { data: profile } = await supabase
-        .from("profiles").select("id").eq("id", user.id).maybeSingle();
+        .from("profiles").select("id, account_tier").eq("id", user.id).maybeSingle();
 
-      if (profile) {
+      // 관리자는 이미 프로필이 있어도 페이지를 볼 수 있게 허용 (리다이렉트 방지)
+      if (profile && profile.account_tier !== "admin") {
         await fetch("/api/mark-onboarded", { method: "POST" });
         router.replace("/explorer");
         return;
@@ -64,9 +66,10 @@ export default function OnboardingPage() {
   // ── 유효성 ────────────────────────────────────────────────────────────────
   const step1Valid =
     nickname.trim().length > 0 && role && region &&
-    (schoolName.trim().length > 0 || companyName.trim().length > 0);
+    (schoolName.trim().length > 0 || companyName.trim().length > 0) &&
+    phone.trim().length >= 10; // 휴대폰 번호 필수 (최소 10자)
   const step2Valid = dreamMajors.length > 0;
-  const step3Valid = subjects.length > 0;
+  const step3Valid = subjects.length > 0 && consent; // 개인정보 동의 필수
 
   // ── 저장 ──────────────────────────────────────────────────────────────────
   const handleSave = async () => {
@@ -74,17 +77,28 @@ export default function OnboardingPage() {
     setSaving(true);
     setError("");
 
-    const { error: dbErr } = await supabase.from("profiles").insert({
+    // 관리자가 미리보기 중이라면 저장은 건너뛰고 이동만 시킴 (혹은 upsert)
+    const { data: existingProfile } = await supabase
+      .from("profiles").select("account_tier").eq("id", user.id).maybeSingle();
+    
+    const profileData = {
       id:                user.id,
       nickname:          nickname.trim(),
       role,
       region,
       school_name:       schoolName.trim(),
       company_name:      companyName.trim() || null,
+      phone_number:      phone.trim(),
       dream_majors:      dreamMajors,
       interest_subjects: subjects,
+      privacy_consent_at: new Date().toISOString(), // 동의 시간 기록
       updated_at:        new Date().toISOString(),
-    });
+      };
+
+
+    const { error: dbErr } = existingProfile 
+      ? await supabase.from("profiles").update(profileData).eq("id", user.id)
+      : await supabase.from("profiles").insert(profileData);
 
     if (dbErr) {
       setError("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
@@ -152,6 +166,20 @@ export default function OnboardingPage() {
                   onChange={(e) => setNickname(e.target.value)}
                   placeholder="사용할 닉네임 (최대 20자)"
                   maxLength={20}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              {/* 휴대폰 번호 */}
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  휴대폰 번호 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="'-' 없이 숫자만 입력 (예: 01012345678)"
                   className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
@@ -342,6 +370,27 @@ export default function OnboardingPage() {
                     </button>
                   );
                 })}
+              </div>
+
+              {/* 개인정보 활용 동의 */}
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={consent}
+                    onChange={(e) => setConsent(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div className="text-xs leading-relaxed text-slate-600">
+                    <p className="font-bold text-slate-800">개인정보 수집 및 활용 동의 (필수)</p>
+                    <p className="mt-0.5">
+                      서비스 제공을 위해 휴대폰 번호 등 개인정보를 수집하며, 대한민국 법령에 따라 안전하게 보호됩니다.{" "}
+                      <a href="/privacy-policy" target="_blank" className="text-blue-600 underline">
+                        상세 약관 보기
+                      </a>
+                    </p>
+                  </div>
+                </label>
               </div>
 
               {error && (

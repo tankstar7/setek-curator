@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { label: "홈",            href: "/" },
   { label: "22개정 가이드", href: "/guide" },
   { label: "세특 탐구소",   href: "/explorer" },
-  { label: "AI 세특 연구실",href: "/lab" },
+  { label: "AI 생기부 분석실", href: "/lab" },
   { label: "마이페이지",    href: "/mypage" },
 ];
 

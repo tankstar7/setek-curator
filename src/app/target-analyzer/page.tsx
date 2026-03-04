@@ -234,27 +234,62 @@ export default function TargetAnalyzerPage() {
     <main className="min-h-screen bg-gray-50 pb-24">
 
       {/* ── 헤더 ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#0f2544] via-[#1e3a5f] to-[#2d5282] px-4 py-6 text-white">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#0f2540] via-[#1e3a5f] to-[#2d5282] px-4 py-20 text-white">
+        {/* 배경 장식 — Guide 페이지와 동일한 패턴 */}
+        <div className="pointer-events-none absolute -right-40 -top-40 size-96 rounded-full bg-blue-500/10" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 size-72 rounded-full bg-blue-400/10" />
+
         <div className="relative mx-auto max-w-4xl text-center">
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5">
             <span className="text-xs font-bold text-amber-300">PREMIUM</span>
             <span className="h-1 w-1 rounded-full bg-amber-400/60" />
             <span className="text-xs text-amber-200">세특큐레이터 독자 분석 서비스</span>
           </div>
-          <h1 className="mb-1.5 text-2xl font-extrabold tracking-tight sm:text-3xl">
-            목표 대학 정밀 분석기
+
+          <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+            AI 생기부 분석실
           </h1>
-          <p className="text-sm text-blue-200">
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-blue-100 sm:text-lg">
             희망 대학·학과의 <strong className="text-white">공식 권장 과목</strong>과{" "}
             <strong className="text-white">세특큐레이터 독자 전략</strong>을 한 눈에 비교하세요.
           </p>
+
+          {/* 신뢰 지표 배너 */}
+          <div className="mt-12 grid grid-cols-3 gap-6 border-t border-white/10 pt-10">
+            {[
+              { num: "50+",  unit: "개",   desc: "분석 완료 대학"  },
+              { num: "200+", unit: "개",   desc: "학과 데이터 보유" },
+              { num: "22",   unit: "개정", desc: "교육과정 기준"   },
+            ].map((s) => (
+              <div key={s.desc}>
+                <p className="text-2xl font-extrabold sm:text-4xl">
+                  {s.num}
+                  <span className="ml-1 text-lg text-blue-300 sm:text-2xl">{s.unit}</span>
+                </p>
+                <p className="mt-1 text-xs text-blue-200 sm:text-sm">{s.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      <div className="mx-auto max-w-5xl px-4">
+      <div className="mx-auto max-w-5xl px-4 py-14">
+
+        {/* ── 검색 섹션 타이틀 ── */}
+        <div className="mb-6 text-center">
+          <p className="mb-1.5 text-[10px] font-extrabold uppercase tracking-widest text-[#1e3a5f]">
+            Step 1 · 분석 대상 선택
+          </p>
+          <h2 className="text-2xl font-extrabold leading-snug tracking-tight text-gray-900 sm:text-3xl">
+            분석할 대학·전공을 선택하세요
+          </h2>
+          <p className="mt-2 text-sm text-gray-500">
+            연구원이 직접 분석 완료한 대학만 표시됩니다.
+          </p>
+        </div>
 
         {/* ── 검색 카드 ── */}
-        <div className="mt-8 mb-10 rounded-2xl border border-gray-200 bg-white p-6 shadow-lg">
+        <div className="mb-12 rounded-2xl border border-gray-200 bg-white p-6 shadow-lg">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
 
             <div className="flex-1">
@@ -535,6 +570,11 @@ export default function TargetAnalyzerPage() {
                 </div>
               </div>
             </div>
+
+            {/* ── 출처 표기 ── */}
+            <p className="text-center text-[11px] leading-relaxed text-gray-400">
+              본 서비스는 2027 대입전형 시행계획 및 5개 주요 대학 공동연구를 기준으로 설계되었습니다.
+            </p>
 
             <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#1e3a5f] to-[#2d5282] p-8 shadow-lg">
               <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">

@@ -20,9 +20,12 @@ interface Profile {
   role: string;
   region: string;
   school_name: string;
+  company_name: string | null;
   dream_majors: string[];
   interest_subjects: string[];
   updated_at: string;
+  account_tier: string;
+  phone_number?: string;
 }
 
 function toggle(arr: string[], val: string, max: number): string[] {
@@ -41,6 +44,8 @@ export default function MyPage() {
   const router = useRouter();
   const [user, setUser]         = useState<User | null>(null);
   const [profile, setProfile]   = useState<Profile | null>(null);
+  const [viewedReports, setViewedReports] = useState<any[]>([]); // 추가
+  const [savedReports, setSavedReports]   = useState<any[]>([]); // 저장 기록 추가
   const [loading, setLoading]   = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [editing, setEditing]   = useState(false);
@@ -50,6 +55,8 @@ export default function MyPage() {
   const [eRole,       setERole]       = useState("");
   const [eRegion,     setERegion]     = useState("");
   const [eSchool,     setESchool]     = useState("");
+  const [eCompany,    setECompany]    = useState(""); // 추가
+  const [ePhone,      setEPhone]      = useState("");
   const [eMajors,     setEMajors]     = useState<string[]>([]);
   const [eSubjects,   setESubjects]   = useState<string[]>([]);
   const [saving,      setSaving]      = useState(false);
@@ -79,18 +86,52 @@ export default function MyPage() {
         }
         setUser(user);
 
-        const { data } = await supabase
-          // .maybeSingle() — 0 rows이면 null 반환 (406 에러 없음)
+        // 1. 프로필 정보 가져오기
+        const { data: profileData } = await supabase
           .from("profiles").select("*").eq("id", user.id).maybeSingle();
 
         if (cancelled) return;
-        clearTimeout(loadTimer);
+        if (!profileData) { router.replace("/onboarding"); return; }
+        setProfile(profileData as Profile);
 
-        if (!data) { router.replace("/onboarding"); return; }
-        setProfile(data as Profile);
+        // 2. 열람 기록 가져오기 (최신순)
+        const { data: historyData } = await supabase
+          .from("report_user_history")
+          .select(`
+            viewed_at,
+            premium_reports:report_id (
+              id,
+              title,
+              subject,
+              target_majors
+            )
+          `)
+          .eq("user_id", user.id)
+          .order("viewed_at", { ascending: false });
+
+        if (!cancelled && historyData) {
+          setViewedReports(historyData);
+        }
+
+        // 3. 저장 기록 가져오기
+        const { data: savedData } = await supabase
+          .from("report_user_saved")
+          .select(`
+            saved_at,
+            premium_reports:report_id (id, title, subject, target_majors)
+          `)
+          .eq("user_id", user.id)
+          .order("saved_at", { ascending: false });
+
+        if (!cancelled && savedData) {
+          setSavedReports(savedData);
+        }
+
+        clearTimeout(loadTimer);
         setLoading(false);
-      } catch {
+      } catch (err) {
         if (cancelled) return;
+        console.error("데이터 로딩 중 오류:", err);
         clearTimeout(loadTimer);
         setLoadError(true);
         setLoading(false);
@@ -106,6 +147,8 @@ export default function MyPage() {
     setERole(profile.role);
     setERegion(profile.region);
     setESchool(profile.school_name);
+    setECompany(profile.company_name || ""); // 기존 정보 로드
+    setEPhone(profile.phone_number || "");
     setEMajors([...profile.dream_majors]);
     setESubjects([...profile.interest_subjects]);
     setEditError("");
@@ -114,9 +157,11 @@ export default function MyPage() {
 
   const handleSave = async () => {
     if (!eNickname.trim())    { setEditError("닉네임을 입력해주세요."); return; }
+    if (!ePhone.trim() || ePhone.trim().length < 10) { setEditError("휴대폰 번호를 올바르게 입력해주세요."); return; }
     if (!eRole)                { setEditError("신분을 선택해주세요."); return; }
     if (!eRegion)              { setEditError("지역을 선택해주세요."); return; }
-    if (!eSchool.trim())       { setEditError("학교명을 입력해주세요."); return; }
+    // 학교명 혹은 회사/학원명 중 하나는 필수
+    if (!eSchool.trim() && !eCompany.trim()) { setEditError("학교명 또는 회사/학원명 중 하나를 입력해주세요."); return; }
     if (eMajors.length === 0)  { setEditError("희망 전공을 1개 이상 선택해주세요."); return; }
     if (eSubjects.length === 0){ setEditError("관심 과목을 1개 이상 선택해주세요."); return; }
     if (!user) return;
@@ -126,19 +171,27 @@ export default function MyPage() {
 
     const { error } = await supabase.from("profiles").update({
       nickname:          eNickname.trim(),
+      phone_number:      ePhone.trim(),
       role:              eRole,
       region:            eRegion,
       school_name:       eSchool.trim(),
+      company_name:      eCompany.trim() || null,
       dream_majors:      eMajors,
       interest_subjects: eSubjects,
+      privacy_consent_at: new Date().toISOString(), // 추가
       updated_at:        new Date().toISOString(),
     }).eq("id", user.id);
 
-    if (error) { setEditError("저장 중 오류가 발생했습니다."); setSaving(false); return; }
+    if (error) { 
+      console.error("[MyPage] 프로필 저장 에러 상세:", error);
+      setEditError(`저장 중 오류가 발생했습니다: ${error.message}`); 
+      setSaving(false); 
+      return; 
+    }
 
     setProfile((p) => p ? {
-      ...p, nickname: eNickname.trim(), role: eRole,
-      region: eRegion, school_name: eSchool.trim(),
+      ...p, nickname: eNickname.trim(), phone_number: ePhone.trim(), role: eRole,
+      region: eRegion, school_name: eSchool.trim(), company_name: eCompany.trim() || null,
       dream_majors: eMajors, interest_subjects: eSubjects,
     } : p);
     setSaving(false);
@@ -149,6 +202,37 @@ export default function MyPage() {
     await supabase.auth.signOut();
     await fetch("/api/mark-onboarded", { method: "DELETE" });
     router.push("/");
+  };
+
+  const handleWithdraw = async () => {
+    const ok = window.confirm(
+      "⚠️ 회원 탈퇴 안내\n\n탈퇴 시 회원님의 모든 프로필 정보와 활동 내역이 즉시 삭제되며, 이는 절대로 복구할 수 없습니다.\n\n정말로 세특큐레이터에서 탈퇴하시겠습니까?"
+    );
+    if (!ok) return;
+
+    try {
+      if (!user) return;
+      
+      // 1. 프로필 데이터 삭제 (Supabase RLS가 본인 데이터 삭제를 허용한다고 가정)
+      const { error } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", user.id);
+
+      if (error) {
+        console.error("프로필 삭제 중 오류:", error);
+        alert("탈퇴 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+
+      // 2. 로그아웃 및 홈 이동
+      await supabase.auth.signOut();
+      alert("탈퇴 처리가 완료되었습니다. 그동안 이용해주셔서 감사합니다.");
+      router.push("/");
+    } catch (err) {
+      console.error("탈퇴 프로세스 오류:", err);
+      alert("탈퇴 처리 중 예상치 못한 오류가 발생했습니다.");
+    }
   };
 
   if (loading) return (
@@ -181,6 +265,20 @@ export default function MyPage() {
   );
 
   const roleEmoji = ROLE_EMOJI[profile?.role ?? ""] ?? "👤";
+
+  // 통계 데이터 동적 계산
+  const stats = [
+    { label: "열람한 보고서", value: viewedReports.length.toString(), icon: "📄" },
+    { label: "저장한 보고서", value: savedReports.length.toString(), icon: "🔖" },
+    { label: "보유 크레딧",   value: "0", icon: "💎" },
+  ];
+
+  function subjectEmoji(subject: string) {
+    const map: Record<string, string> = {
+      화학: "🧪", 물리학: "⚡", 생명과학: "🧬", 지구과학: "🌍", 수학: "📐", 정보: "💻",
+    };
+    return map[subject] || "📚";
+  }
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -290,6 +388,17 @@ export default function MyPage() {
                 />
               </div>
 
+              {/* 휴대폰 번호 */}
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-slate-700">휴대폰 번호</label>
+                <input
+                  type="tel" value={ePhone}
+                  onChange={(e) => setEPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                  placeholder="'-' 없이 숫자만 입력"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
               {/* 신분 */}
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">신분</label>
@@ -308,8 +417,8 @@ export default function MyPage() {
                 </div>
               </div>
 
-              {/* 지역 + 학교 */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* 지역 + 학교/회사 */}
+              <div className="space-y-4">
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-slate-700">지역</label>
                   <select value={eRegion} onChange={(e) => setERegion(e.target.value)}
@@ -319,13 +428,25 @@ export default function MyPage() {
                     {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="mb-1 block text-sm font-semibold text-slate-700">학교명</label>
-                  <input type="text" value={eSchool}
-                    onChange={(e) => setESchool(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500"
-                  />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">학교명</label>
+                    <input type="text" value={eSchool}
+                      onChange={(e) => setESchool(e.target.value)}
+                      placeholder="학교명 입력"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-slate-700">회사 / 학원명</label>
+                    <input type="text" value={eCompany}
+                      onChange={(e) => setECompany(e.target.value)}
+                      placeholder="회사 또는 학원명 입력"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
                 </div>
+                <p className="text-[11px] text-slate-400">* 학교명 또는 회사/학원명 중 하나를 입력하세요.</p>
               </div>
 
               {/* 희망 전공 */}
@@ -400,11 +521,39 @@ export default function MyPage() {
           </Card>
         )}
 
+        {/* ── 관리자 전용 섹션 ── */}
+        {profile?.account_tier === "admin" && (
+          <Card className="border-2 border-red-200 bg-red-50/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-700 text-base">
+                <span>🛡️</span> 관리자 전용 메뉴
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Link href="/admin" className="flex-1">
+                  <Button className="w-full bg-red-600 font-bold text-white hover:bg-red-700">
+                    📊 대시보드 바로가기
+                  </Button>
+                </Link>
+                <Link href="/onboarding" className="flex-1">
+                  <Button variant="outline" className="w-full border-red-200 text-red-700 hover:bg-red-100 font-bold">
+                    ✨ 온보딩 페이지 미리보기
+                  </Button>
+                </Link>
+              </div>
+              <p className="text-[11px] text-red-400">
+                * 온보딩 미리보기를 통해 가입 절차를 확인하고 정보를 직접 수정할 수 있습니다.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* ── 활동 통계 ── */}
         <section>
           <h2 className="mb-4 text-lg font-bold text-gray-900">나의 활동</h2>
           <div className="grid grid-cols-3 gap-4">
-            {STATS.map((s) => (
+            {stats.map((s) => (
               <Card key={s.label} className="border-gray-200 text-center">
                 <CardContent className="pt-5">
                   <p className="mb-1 text-3xl">{s.icon}</p>
@@ -419,45 +568,109 @@ export default function MyPage() {
         {/* ── 최근 열람 ── */}
         <section>
           <h2 className="mb-4 text-lg font-bold text-gray-900">최근 열람 보고서</h2>
-          <Card className="border-dashed border-gray-300">
-            <CardContent className="py-12 text-center text-gray-400">
-              <p className="mb-2 text-3xl">📭</p>
-              <p className="text-sm">아직 열람한 보고서가 없어요.</p>
-              <Link href="/explorer">
-                <Button className="mt-4 bg-[#1e3a5f] text-white hover:bg-[#152c4a]">
-                  탐구 주제 찾으러 가기
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+          {viewedReports.length === 0 ? (
+            <Card className="border-dashed border-gray-300">
+              <CardContent className="py-12 text-center text-gray-400">
+                <p className="mb-2 text-3xl">📭</p>
+                <p className="text-sm">아직 열람한 보고서가 없어요.</p>
+                <Link href="/explorer">
+                  <Button className="mt-4 bg-[#1e3a5f] text-white hover:bg-[#152c4a]">
+                    탐구 주제 찾으러 가기
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {viewedReports.slice(0, 3).map((history, idx) => {
+                const r = history.premium_reports;
+                if (!r) return null;
+                return (
+                  <Link key={`${r.id}-${idx}`} href={`/reports/${r.id}`}>
+                    <Card className="group h-full cursor-pointer border-gray-200 transition-all hover:border-blue-300 hover:shadow-md">
+                      <CardContent className="p-5">
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-2xl">{subjectEmoji(r.subject)}</span>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(history.viewed_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <h3 className="mb-2 line-clamp-2 text-sm font-bold text-gray-800 group-hover:text-blue-600">
+                          {r.title}
+                        </h3>
+                        <div className="flex flex-wrap gap-1">
+                          {(r.target_majors || []).slice(0, 1).map((m: string) => (
+                            <span key={m} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-600">
+                              {m}
+                            </span>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </section>
 
-        {/* ── 프리미엄 플랜 ── */}
-        <Card className="border-2 border-orange-300 bg-gradient-to-br from-orange-50 to-white">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span>✨</span> 프리미엄 플랜
-              <Badge className="bg-orange-500 text-xs text-white">준비 중</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-gray-600">
-            <p>✅ 심화 탐구 전문 열람 무제한</p>
-            <p>✅ 전공 연계 비전 & 진로 로드맵</p>
-            <p>✅ AI 맞춤 보고서 초안 생성 무제한</p>
-            <p>✅ PDF 다운로드</p>
-            <Button className="mt-4 w-full bg-orange-500 font-bold text-white hover:bg-orange-400">
-              프리미엄 사전 알림 신청
-            </Button>
-          </CardContent>
-        </Card>
+        {/* ── 저장한 보고서 ── */}
+        <section>
+          <h2 className="mb-4 text-lg font-bold text-gray-900">저장한 보고서</h2>
+          {savedReports.length === 0 ? (
+            <Card className="border-dashed border-gray-300">
+              <CardContent className="py-12 text-center text-gray-400">
+                <p className="mb-2 text-3xl">🔖</p>
+                <p className="text-sm">아직 저장한 보고서가 없어요.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {savedReports.map((saved, idx) => {
+                const r = saved.premium_reports;
+                if (!r) return null;
+                return (
+                  <Link key={`${r.id}-${idx}`} href={`/reports/${r.id}`}>
+                    <Card className="group h-full cursor-pointer border-gray-200 transition-all hover:border-blue-300 hover:shadow-md">
+                      <CardContent className="p-5">
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="text-2xl">{subjectEmoji(r.subject)}</span>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(saved.saved_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <h3 className="mb-2 line-clamp-2 text-sm font-bold text-gray-800 group-hover:text-blue-600">
+                          {r.title}
+                        </h3>
+                        <div className="flex flex-wrap gap-1">
+                          {(r.target_majors || []).slice(0, 1).map((m: string) => (
+                            <span key={m} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-600">
+                              {m}
+                            </span>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
-        {/* ── 로그아웃 ── */}
-        <div className="pb-4 text-center">
+        {/* ── 로그아웃 & 회원 탈퇴 ── */}
+        <div className="flex items-center justify-center gap-6 pb-4">
           <button
             onClick={handleSignOut}
-            className="text-sm text-gray-400 underline underline-offset-2 transition hover:text-red-500"
+            className="text-sm text-gray-400 underline underline-offset-2 transition hover:text-gray-600"
           >
             로그아웃
+          </button>
+          <button
+            onClick={handleWithdraw}
+            className="text-sm text-gray-300 underline underline-offset-2 transition hover:text-red-500"
+          >
+            회원 탈퇴
           </button>
         </div>
       </div>
