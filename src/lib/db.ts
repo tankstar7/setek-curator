@@ -330,3 +330,18 @@ export async function incrementReportViews(id: string): Promise<void> {
 export async function deleteReport(id: string): Promise<void> {
   await deleteDoc(doc(db, COL.REPORTS, id));
 }
+
+/** 
+ * 회원 계정 영구 삭제 (Firestore 버전)
+ * 관리자 페이지에서 계정 즉시 삭제 시 호출됩니다.
+ */
+export async function deleteUserPermanently(token: string, userId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    // Firestore의 'users' 컬렉션에서 해당 문서 삭제
+    await deleteDoc(doc(db, "users", userId));
+    return { ok: true };
+  } catch (err: any) {
+    console.error("[Firestore] 계정 삭제 오류:", err);
+    return { ok: false, error: err.message };
+  }
+}

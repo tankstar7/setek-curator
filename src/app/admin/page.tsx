@@ -10,6 +10,7 @@ import {
   PieChart, Pie, Legend,
 } from "recharts";
 import { updateUserTier, scheduleUserDeletion, cancelUserDeletion, type Tier } from "./actions";
+import { deleteUserPermanently } from "@/lib/db";
 
 // ── 타입 ──────────────────────────────────────────────────────────────────────
 interface UserProfile {
