@@ -208,8 +208,9 @@ export async function saveSkillTree(data: WithFieldValue<SkillTree>): Promise<vo
  */
 // --- 1. 계층형 과목 매핑 도우미 함수 ---
 export function getSubjectGroup(subject: string): string[] {
+  const s = subject.trim();
   // 연구원님이 설계하신 22개정 과학/진로선택 트리
-  if (subject === '과학') {
+  if (s === '과학') {
     return [
       '과학', '물리', '물리학', '역학과 에너지', '전자기와 양자',
       '화학', '물질과 에너지', '화학 반응의 세계', '화학반응의 세계',
@@ -217,20 +218,26 @@ export function getSubjectGroup(subject: string): string[] {
       '지구과학', '지구시스템과학', '행성우주과학', '행정우주과학'
     ];
   }
-  if (subject === '물리' || subject === '물리학') {
+  if (s === '물리' || s === '물리학') {
     return ['물리', '물리학', '역학과 에너지', '전자기와 양자'];
   }
-  if (subject === '화학') {
-    return ['화학', '물질과 에너지', '화학 반응의 세계', '화학반응의 세계'];
+  if (s === '화학') {
+    return [
+      '화학', '물질과 에너지', '화학 반응의 세계', '화학반응의 세계', 
+      '산화환원', '산화 환원', '전기분해', '전기 화학'
+    ];
   }
-  if (subject === '생명과학' || subject === '생명') {
+  if (s === '화학 반응의 세계' || s === '화학반응의 세계') {
+    return ['화학 반응의 세계', '화학반응의 세계', '산화환원', '전기분해', '전기 화학'];
+  }
+  if (s === '생명과학' || s === '생명') {
     return ['생명과학', '생명', '세포와 물질대사', '생물의 유전'];
   }
-  if (subject === '지구과학' || subject === '지구') {
+  if (s === '지구과학' || s === '지구') {
     return ['지구과학', '지구', '지구시스템과학', '행성우주과학', '행정우주과학'];
   }
   
-  return [subject]; 
+  return [s]; 
 }
 
 // --- 2. 새로 교체되는 getReports 함수 (Supabase + 계층형 검색) ---
