@@ -16,25 +16,24 @@ export interface Post {
 /** 게시글 목록 조회 */
 export async function getPosts(category: BoardCategory) {
   try {
+    // Schema Cache 에러 방지를 위해 auth.users/profiles 조인 제거
     const { data, error } = await supabase
       .from("posts")
-      .select(`
-        *,
-        profiles:author_id (nickname)
-      `)
+      .select("*")
       .eq("category", category)
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("[getPosts] Supabase 에러:", error.message, error.details);
+      console.error("[getPosts] Supabase 에러:", error.message);
       return [];
     }
 
     if (!data) return [];
 
+    // 조인 제거로 인해 닉네임은 "익명"으로 통일하거나 추후 별도 쿼리 필요
     return data.map((post: any) => ({
       ...post,
-      author_nickname: post.profiles?.nickname || "익명"
+      author_nickname: "익명" 
     }));
   } catch (err) {
     console.error("[getPosts] 예상치 못한 에러:", err);
@@ -45,12 +44,10 @@ export async function getPosts(category: BoardCategory) {
 /** 게시글 단건 조회 */
 export async function getPostById(id: string) {
   try {
+    // 조인 제거
     const { data, error } = await supabase
       .from("posts")
-      .select(`
-        *,
-        profiles:author_id (nickname)
-      `)
+      .select("*")
       .eq("id", id)
       .single();
 
@@ -61,7 +58,7 @@ export async function getPostById(id: string) {
 
     return {
       ...data,
-      author_nickname: data.profiles?.nickname || "익명"
+      author_nickname: "익명"
     };
   } catch (err) {
     console.error("[getPostById] 에러:", err);
@@ -70,19 +67,34 @@ export async function getPostById(id: string) {
 }
 
 /** 게시글 작성 */
-export async function createPost(post: Omit<Post, "id" | "created_at" | "views" | "author_nickname">) {
-  const { data, error } = await supabase
-    .from("posts")
-    .insert(post)
-    .select()
-    .single();
+export async function createPost(post: Omit<Post, "id" | "created_at" | "views" | "author_nickname" | "author_id">) {
+  try {
+    // RLS Violation 방지를 위해 서버 측에서 세션/유저 정보 재확인 및 author_id 강제 주입
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error("로그인이 필요합니다.");
+    }
 
-  if (error) {
-    console.error("[createPost] 에러:", error.message);
-    throw error;
+    const { data, error } = await supabase
+      .from("posts")
+      .insert({
+        ...post,
+        author_id: user.id // payload에 author_id 명시적 포함
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[createPost] DB 에러:", error.message);
+      throw error;
+    }
+
+    return data;
+  } catch (err: any) {
+    console.error("[createPost] 에러:", err.message);
+    throw err;
   }
-
-  return data;
 }
 
 /** 조회수 증가 */

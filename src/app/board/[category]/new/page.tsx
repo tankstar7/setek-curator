@@ -64,7 +64,6 @@ export default function NewPostPage({ params }: { params: Promise<{ category: st
         category,
         title: title.trim(),
         content: content.trim(),
-        author_id: user.id,
       });
       alert("게시글이 등록되었습니다.");
       router.push(`/board/${category}`);
