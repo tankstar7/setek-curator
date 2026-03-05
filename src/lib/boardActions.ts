@@ -1,4 +1,7 @@
+"use server";
+
 import { supabase } from "./supabase";
+import { getSupabaseAdmin } from "./supabaseAdmin";
 
 export type BoardCategory = "notice" | "event" | "inquiry";
 
@@ -16,7 +19,6 @@ export interface Post {
 /** 게시글 목록 조회 */
 export async function getPosts(category: BoardCategory) {
   try {
-    // Schema Cache 에러 방지를 위해 auth.users/profiles 조인 제거
     const { data, error } = await supabase
       .from("posts")
       .select("*")
@@ -30,7 +32,6 @@ export async function getPosts(category: BoardCategory) {
 
     if (!data) return [];
 
-    // 조인 제거로 인해 닉네임은 "익명"으로 통일하거나 추후 별도 쿼리 필요
     return data.map((post: any) => ({
       ...post,
       author_nickname: "익명" 
@@ -44,7 +45,6 @@ export async function getPosts(category: BoardCategory) {
 /** 게시글 단건 조회 */
 export async function getPostById(id: string) {
   try {
-    // 조인 제거
     const { data, error } = await supabase
       .from("posts")
       .select("*")
@@ -69,18 +69,22 @@ export async function getPostById(id: string) {
 /** 게시글 작성 */
 export async function createPost(post: Omit<Post, "id" | "created_at" | "views" | "author_nickname" | "author_id">) {
   try {
-    // RLS Violation 방지를 위해 서버 측에서 세션/유저 정보 재확인 및 author_id 강제 주입
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
       throw new Error("로그인이 필요합니다.");
     }
 
-    const { data, error } = await supabase
+    // notice나 event 카테고리인 경우 Admin Client 사용 (RLS 우회)
+    const client = (post.category === "notice" || post.category === "event")
+      ? getSupabaseAdmin()
+      : supabase;
+
+    const { data, error } = await client
       .from("posts")
       .insert({
         ...post,
-        author_id: user.id // payload에 author_id 명시적 포함
+        author_id: user.id
       })
       .select()
       .single();
