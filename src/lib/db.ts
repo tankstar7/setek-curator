@@ -256,8 +256,7 @@ export async function getReports(filters?: {
   // 1. 계층형 과목 필터 (Supabase or 쿼리에서는 와일드카드로 % 대신 * 를 써야 합니다!)
   if (filters?.subject) {
     const targetSubjects = getSubjectGroup(filters.subject.trim());
-    // 수정됨: % 기호를 * 기호로 변경
-    const orQuery = targetSubjects.map(sub => `subject.ilike.%${sub}%`).join(',');
+    const orQuery = targetSubjects.map(sub => `subject.ilike.*${sub}*`).join(',');
     query = query.or(orQuery);
   }
 

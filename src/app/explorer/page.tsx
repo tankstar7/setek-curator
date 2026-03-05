@@ -408,19 +408,43 @@ export default function ExplorerPage() {
         const activeSubject = selCourse ?? selSubject;
         if (activeSubject) {
           const subjectGroup = getSubjectGroup(activeSubject);
-          const orQ = subjectGroup.map((s) => `subject.ilike.%${s}%`).join(",");
+          const orQ = subjectGroup.map((s) => `subject.ilike.*${s}*`).join(","); // % 대신 * 사용
           query = query.or(orQ);
         }
-        // 대단원: 부분 일치 (로마자 번호 접두어 제거 후 ilike)
+
+        // 텍스트 정제 함수: 번호, 특수문자, 공백 제거
+        const cleanForSearch = (text: string) => {
+          return text
+            .replace(/^([A-Za-zIVX]+|\d+)\.\s*/, "") // "I. ", "1. " 제거
+            .replace(/^(\d+-\d+|\d+)\.\s*/, "")      // "1-1. ", "01. " 제거
+            .replace(/[\s·\-\(\)]/g, "");            // 공백, 가운뎃점, 하이픈, 괄호 제거
+        };
+
+        // 대단원 필터
         if (selMajorUnit) {
-          const cleaned = selMajorUnit.replace(/^([A-Za-zIVX]+|\d+)\.\s*/, "").trim();
-          query = query.ilike("large_unit_name", `%${cleaned}%`);
+          const keyword = cleanForSearch(selMajorUnit);
+          // 퍼지 매칭: "산화환원" -> "%산%화%환%원%"
+          const fuzzyKeyword = keyword.split("").join("%");
+          query = query.ilike("large_unit_name", `%${fuzzyKeyword}%`);
         }
+
+        // 소단원 필터
+        if (selMinorUnit) {
+          const keyword = cleanForSearch(selMinorUnit);
+          const fuzzyKeyword = keyword.split("").join("%");
+          query = query.ilike("small_unit_name", `%${fuzzyKeyword}%`);
+        }
+
         if (searchQuery.trim())
           query = query.ilike("title", `%${searchQuery.trim()}%`);
 
+        // 캐싱 방지를 위한 더미 쿼리 파라미터 (데이터 신선도 보장)
+        // Note: Supabase JS SDK에서는 직접 url 조작이 어려우므로 
+        // 실제 운영 환경에서는 데이터 변경 시 revalidatePath를 권장하지만, 
+        // 여기서는 필터 변경 자체가 새로운 요청을 유발함.
+
         console.log('[Explorer] Supabase premium_reports 쿼리 시작', {
-          selSubject, selCourse, selMajorUnit, searchQuery: searchQuery.trim() || '(없음)',
+          selSubject, selCourse, selMajorUnit, selMinorUnit, searchQuery: searchQuery.trim() || '(없음)',
         });
 
         const { data, error } = await query;
@@ -459,7 +483,7 @@ export default function ExplorerPage() {
       cancelled = true; // StrictMode 이중 실행 / 빠른 필터 변경 방어
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-  }, [selSubject, selCourse, selMajorUnit, searchQuery]);
+  }, [selSubject, selCourse, selMajorUnit, selMinorUnit, searchQuery]);
 
   const loading = curriculaLoading;
 
