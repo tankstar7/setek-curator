@@ -5,7 +5,8 @@ interface SectionTitleProps {
   title: string;
   description?: string;
   className?: string;
-  titleClassName?: string; // 타이틀 색상 등을 위한 클래스 추가
+  titleClassName?: string;
+  descriptionClassName?: string; // 설명 색상 등을 위한 클래스 추가
   align?: "left" | "center";
 }
 
@@ -15,6 +16,7 @@ export function SectionTitle({
   description,
   className,
   titleClassName,
+  descriptionClassName,
   align = "center",
 }: SectionTitleProps) {
   return (
@@ -28,7 +30,10 @@ export function SectionTitle({
         {title}
       </h2>
       {description && (
-        <p className="mt-4 text-base font-medium leading-relaxed tracking-tight text-gray-500 max-w-2xl mx-auto md:text-lg">
+        <p className={cn(
+          "mt-4 text-base font-medium leading-relaxed tracking-tight text-gray-500 max-w-2xl mx-auto md:text-lg",
+          descriptionClassName
+        )}>
           {description}
         </p>
       )}

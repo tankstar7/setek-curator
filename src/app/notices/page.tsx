@@ -42,6 +42,7 @@ export default function NoticesPage() {
             description="세특큐레이터의 새로운 소식과 안내사항을 확인하세요."
             className="mb-0"
             titleClassName="text-white"
+            descriptionClassName="text-blue-100/80"
           />
         </div>
       </section>

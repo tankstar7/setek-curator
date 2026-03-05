@@ -42,6 +42,7 @@ export default function EventsPage() {
             description="진행 중인 이벤트와 혜택을 놓치지 마세요."
             className="mb-0"
             titleClassName="text-white"
+            descriptionClassName="text-blue-100/80"
           />
         </div>
       </section>

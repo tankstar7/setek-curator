@@ -32,6 +32,7 @@ export default function InquiryPage() {
             description="궁금한 점이나 건의사항을 남겨주시면 정성껏 답변해 드립니다."
             className="mb-0"
             titleClassName="text-white"
+            descriptionClassName="text-blue-100/80"
           />
         </div>
       </section>
