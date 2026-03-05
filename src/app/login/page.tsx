@@ -135,7 +135,7 @@ export default function LoginPage() {
             alt="Google"
             className="h-5 w-5"
           />
-          Google로 시작하기
+          Google로 로그인 / 가입하기
         </button>
 
         <p className="mt-8 text-xs text-slate-400">

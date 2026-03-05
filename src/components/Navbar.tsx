@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { forceSignOut } from "@/lib/authUtils";
 import type { User } from "@supabase/supabase-js";
+import { ChevronDown, Megaphone, Gift, Headset } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "홈",            href: "/" },
@@ -16,10 +17,17 @@ const NAV_ITEMS = [
   { label: "마이페이지",    href: "/mypage" },
 ];
 
+const BOARD_ITEMS = [
+  { label: "공지사항", href: "/notices",  icon: <Megaphone className="size-4" /> },
+  { label: "이벤트",   href: "/events",   icon: <Gift className="size-4" /> },
+  { label: "고객센터", href: "/inquiry", icon: <Headset className="size-4" /> },
+];
+
 export default function Navbar() {
   const pathname = usePathname();
   const router   = useRouter();
   const [open, setOpen]           = useState(false);
+  const [boardOpen, setBoardOpen] = useState(false);
   const [user, setUser]           = useState<User | null>(null);
   const [nickname, setNickname]   = useState<string | null>(null);
   const [accountTier, setAccountTier] = useState<string | null>(null);
@@ -123,19 +131,74 @@ export default function Navbar() {
 
     if (user) {
       return (
-        <div className={`flex items-center gap-2 ${mobile ? "w-full" : ""}`}>
-          {/* 닉네임 뱃지 (없으면 이메일 앞부분) */}
-          <span className="max-w-[140px] truncate rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-blue-100">
-            {nickname ?? user.email?.split("@")[0]}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className={`text-blue-100 hover:bg-white/10 hover:text-white ${mobile ? "flex-1" : ""}`}
-          >
-            로그아웃
-          </Button>
+        <div className={`flex items-center gap-3 ${mobile ? "flex-col items-stretch" : ""}`}>
+          {/* ── 이벤트/고객센터 드롭다운 (Desktop) ── */}
+          {!mobile && (
+            <div className="group relative">
+              <button className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-blue-100 transition-colors hover:text-white">
+                이벤트/고객센터
+                <ChevronDown className="size-3.5 transition-transform group-hover:rotate-180" />
+              </button>
+              
+              <div className="invisible absolute right-0 top-full w-40 pt-2 opacity-0 transition-all group-hover:visible group-hover:opacity-100">
+                <div className="overflow-hidden rounded-xl border border-white/10 bg-[#152c4a] p-1.5 shadow-xl shadow-black/20">
+                  {BOARD_ITEMS.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-blue-100 transition-colors hover:bg-white/10 hover:text-white"
+                    >
+                      {item.icon}
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── 이벤트/고객센터 아코디언 (Mobile) ── */}
+          {mobile && (
+            <div className="space-y-1">
+              <button 
+                onClick={() => setBoardOpen(!boardOpen)}
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-blue-100 hover:bg-white/10"
+              >
+                이벤트/고객센터
+                <ChevronDown className={`size-4 transition-transform ${boardOpen ? "rotate-180" : ""}`} />
+              </button>
+              {boardOpen && (
+                <div className="ml-4 space-y-1 border-l border-white/10 pl-2">
+                  {BOARD_ITEMS.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-blue-100 hover:text-white"
+                    >
+                      {item.icon}
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            {/* 닉네임 뱃지 (없으면 이메일 앞부분) */}
+            <span className="max-w-[140px] truncate rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-blue-100">
+              {nickname ?? user.email?.split("@")[0]}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className={`text-blue-100 hover:bg-white/10 hover:text-white ${mobile ? "flex-1" : ""}`}
+            >
+              로그아웃
+            </Button>
+          </div>
         </div>
       );
     }
@@ -146,7 +209,7 @@ export default function Navbar() {
         onClick={() => router.push("/login")}
         className={`bg-blue-500 text-white hover:bg-blue-400 ${mobile ? "w-full" : ""}`}
       >
-        Sign in
+        로그인 / 가입하기
       </Button>
     );
   };

@@ -5,6 +5,7 @@ interface SectionTitleProps {
   title: string;
   description?: string;
   className?: string;
+  titleClassName?: string; // 타이틀 색상 등을 위한 클래스 추가
   align?: "left" | "center";
 }
 
@@ -13,6 +14,7 @@ export function SectionTitle({
   title,
   description,
   className,
+  titleClassName,
   align = "center",
 }: SectionTitleProps) {
   return (
@@ -22,7 +24,7 @@ export function SectionTitle({
           {label}
         </p>
       )}
-      <h2 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
+      <h2 className={cn("text-3xl font-bold tracking-tight text-gray-900 md:text-4xl", titleClassName)}>
         {title}
       </h2>
       {description && (
