@@ -91,19 +91,31 @@ export default function LabPage() {
             {[
               {
                 title: "블라인드 평가 준수",
-                desc: "학교명, 지역, 부모 정보 등 배경 지식은 철저히 배제하고 오직 텍스트에 드러난 역량만 평가한다.",
+                desc: (
+                  <>
+                    학교명, 지역, 부모 정보 등 배경 지식은 철저히 배제하고 <strong className="font-bold text-gray-900">오직 텍스트에 드러난 역량</strong>만 평가한다.
+                  </>
+                ),
                 icon: <Search className="size-8 text-blue-400" />,
                 badge: "평가 원칙",
               },
               {
                 title: "과정 중심 평가",
-                desc: "단순히 '결과'가 아니라, '동기', '탐구 과정', '성장'의 흐름을 데이터로 정밀하게 분석한다.",
+                desc: (
+                  <>
+                    단순히 &apos;결과&apos;가 아니라, <strong className="font-bold text-gray-900">&apos;동기&apos;, &apos;탐구 과정&apos;, &apos;성장&apos;의 흐름을 데이터로 정밀하게 분석</strong>한다.
+                  </>
+                ),
                 icon: <BarChart3 className="size-8 text-orange-400" />,
                 badge: "분석 핵심",
               },
               {
                 title: "3대 핵심 역량 기반",
-                desc: "학업역량, 진로역량, 공동체역량의 3가지 프레임워크로 텍스트를 분류하고 점수화한다.",
+                desc: (
+                  <>
+                    <strong className="font-bold text-gray-900">학업역량, 진로역량, 공동체역량</strong>의 3가지 프레임워크로 텍스트를 분류하고 점수화한다.
+                  </>
+                ),
                 icon: <Users className="size-8 text-green-400" />,
                 badge: "역량 프레임",
               },
@@ -113,7 +125,7 @@ export default function LabPage() {
                 icon={item.icon}
                 badge={item.badge}
                 title={item.title}
-                description={item.desc}
+                description={item.desc as any}
               />
             ))}
           </div>

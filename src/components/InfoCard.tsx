@@ -9,6 +9,7 @@ interface InfoCardProps {
   description?: string;
   children?: ReactNode;
   className?: string;
+  contentClassName?: string;
 }
 
 export function InfoCard({
@@ -18,10 +19,11 @@ export function InfoCard({
   description,
   children,
   className,
+  contentClassName,
 }: InfoCardProps) {
   return (
     <Card className={cn("border-gray-200 shadow-md transition-shadow hover:shadow-xl", className)}>
-      <CardContent className="p-8">
+      <CardContent className={cn("p-8", contentClassName)}>
         <div className="mb-6 flex items-start gap-4">
           {icon && (
             <div className="rounded-2xl bg-gray-100 p-3 shrink-0">

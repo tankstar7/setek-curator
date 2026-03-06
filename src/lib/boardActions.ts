@@ -2,20 +2,9 @@
 
 import { supabase } from "./supabase";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { checkIsAdmin } from "./authUtils";
 
 export type BoardCategory = "notice" | "event" | "inquiry";
-
-export interface Post {
-  id: string;
-  category: BoardCategory;
-  title: string;
-  content: string;
-  author_id: string;
-  author_nickname?: string;
-  created_at: string;
-  views: number;
-  is_pinned?: boolean;
-}
 
 /** 게시글 목록 조회 (is_pinned 우선, 최신순, 키워드 검색 지원) */
 export async function getPosts(category: BoardCategory, searchQuery?: string) {
@@ -24,7 +13,7 @@ export async function getPosts(category: BoardCategory, searchQuery?: string) {
       .from("posts")
       .select("*")
       .eq("category", category)
-      .order("is_pinned", { ascending: false, nullsFirst: false })
+      .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false });
 
     if (searchQuery?.trim()) {
@@ -75,32 +64,31 @@ export async function getPostById(id: string) {
   }
 }
 
-/** 게시글 작성 (인증 토큰 직접 검증 및 상세 에러 노출) */
+/** 게시글 작성 */
 export async function createPost(
   post: Omit<Post, "id" | "created_at" | "views" | "author_nickname" | "author_id">,
-  token: string // 클라이언트에서 넘겨준 access_token
+  token: string
 ) {
   try {
     if (!token) throw new Error("인증 토큰이 누락되었습니다.");
 
-    // 1. 유저 신원 확보 (Admin Client를 사용해 토큰 직접 검증)
-    // Server Action에서는 브라우저 쿠키 세션이 공유되지 않을 수 있어 토큰 검증이 가장 확실합니다.
     const admin = getSupabaseAdmin();
     const { data: { user }, error: authError } = await admin.auth.getUser(token);
     
     if (authError || !user) {
-      console.error("[createPost] 토큰 검증 실패:", authError?.message);
-      throw new Error(`인증 실패: ${authError?.message || "로그인 세션이 만료되었습니다. 다시 로그인해 주세요."}`);
+      throw new Error(`인증 실패: ${authError?.message || "로그인 세션이 만료되었습니다."}`);
     }
 
     const userId = user.id;
-    console.log(`[createPost] 유저 검증 성공: ${userId}, 카테고리: ${post.category}`);
+    const isAdmin = checkIsAdmin(user.email);
+    
+    // notice, event는 관리자만 작성 가능
+    if ((post.category === "notice" || post.category === "event") && !isAdmin) {
+      throw new Error("관리자만 작성할 수 있는 게시판입니다.");
+    }
 
-    // 2. 클라이언트 분기 (notice, event는 Admin 권한으로 RLS 우회)
-    const isAdminCategory = post.category === "notice" || post.category === "event";
-    const client = isAdminCategory ? admin : supabase;
+    const client = isAdmin ? admin : supabase;
 
-    // 3. 데이터 인서트 (author_id 직접 주입)
     const { data, error: dbError } = await client
       .from("posts")
       .insert({
@@ -112,16 +100,130 @@ export async function createPost(
       .select()
       .single();
 
-    if (dbError) {
-      console.error(`[createPost] DB 에러 상세:`, dbError);
-      const detailMsg = dbError.details ? ` (${dbError.details})` : "";
-      const hintMsg = dbError.hint ? ` [Hint: ${dbError.hint}]` : "";
-      throw new Error(`DB 저장 실패: ${dbError.message}${detailMsg}${hintMsg}`);
-    }
+    if (dbError) throw new Error(`DB 저장 실패: ${dbError.message}`);
 
     return data;
   } catch (err: any) {
-    console.error("[createPost] 최종 예외 발생:", err.message);
+    console.error("[createPost] 에러:", err.message);
+    throw err;
+  }
+}
+
+/** 게시글 수정 */
+export async function updatePost(
+  id: string,
+  post: Partial<Omit<Post, "id" | "created_at" | "views" | "author_nickname" | "author_id">>,
+  token: string
+) {
+  try {
+    if (!token) throw new Error("인증 토큰이 누락되었습니다.");
+
+    const admin = getSupabaseAdmin();
+    const { data: { user }, error: authError } = await admin.auth.getUser(token);
+    
+    if (authError || !user) throw new Error("인증 실패");
+
+    // 원본 게시글 확인
+    const { data: original, error: getError } = await supabase
+      .from("posts")
+      .select("author_id, category")
+      .eq("id", id)
+      .single();
+
+    if (getError || !original) throw new Error("게시글을 찾을 수 없습니다.");
+
+    const isAdmin = checkIsAdmin(user.email);
+    const isAuthor = original.author_id === user.id;
+
+    if (!isAdmin && !isAuthor) {
+      throw new Error("수정 권한이 없습니다.");
+    }
+
+    const client = isAdmin ? admin : supabase;
+
+    const { data, error: dbError } = await client
+      .from("posts")
+      .update({
+        title: post.title,
+        content: post.content,
+        category: post.category,
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (dbError) throw new Error(`DB 수정 실패: ${dbError.message}`);
+
+    return data;
+  } catch (err: any) {
+    console.error("[updatePost] 에러:", err.message);
+    throw err;
+  }
+}
+
+/** 게시글 삭제 */
+export async function deletePost(id: string, token: string) {
+  try {
+    if (!token) throw new Error("인증 토큰이 누락되었습니다.");
+
+    const admin = getSupabaseAdmin();
+    const { data: { user }, error: authError } = await admin.auth.getUser(token);
+    
+    if (authError || !user) throw new Error("인증 실패");
+
+    const { data: original, error: getError } = await supabase
+      .from("posts")
+      .select("author_id, category")
+      .eq("id", id)
+      .single();
+
+    if (getError || !original) throw new Error("게시글을 찾을 수 없습니다.");
+
+    const isAdmin = checkIsAdmin(user.email);
+    const isAuthor = original.author_id === user.id;
+
+    // 일반 유저는 inquiry 게시판의 본인 글만 삭제 가능
+    if (!isAdmin) {
+      if (original.category !== "inquiry" || !isAuthor) {
+        throw new Error("삭제 권한이 없습니다.");
+      }
+    }
+
+    const client = isAdmin ? admin : supabase;
+    const { error: dbError } = await client.from("posts").delete().eq("id", id);
+
+    if (dbError) throw new Error(`DB 삭제 실패: ${dbError.message}`);
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("[deletePost] 에러:", err.message);
+    throw err;
+  }
+}
+
+/** 상단 고정 토글 (관리자 전용) */
+export async function togglePin(id: string, isPinned: boolean, token: string) {
+  try {
+    if (!token) throw new Error("인증 토큰이 누락되었습니다.");
+
+    const admin = getSupabaseAdmin();
+    const { data: { user }, error: authError } = await admin.auth.getUser(token);
+    
+    if (authError || !user) throw new Error("인증 실패");
+
+    const isAdmin = checkIsAdmin(user.email);
+    if (!isAdmin) throw new Error("관리자 권한이 필요합니다.");
+
+    const { error: dbError } = await admin
+      .from("posts")
+      .update({ is_pinned: isPinned })
+      .eq("id", id);
+
+    if (dbError) throw new Error(`고정 상태 변경 실패: ${dbError.message}`);
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("[togglePin] 에러:", err.message);
     throw err;
   }
 }

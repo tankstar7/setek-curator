@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { standardMajors } from "@/lib/data/standardMajors";
+import { getRecommendedReportsForMajor } from "@/lib/db";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -47,6 +48,31 @@ export default async function MajorResultPage({ params }: PageProps) {
   const { id } = await params;
   const major = standardMajors.find((m) => m.id === id);
   if (!major) notFound();
+
+  // ── 실시간 추천 탐구 주제 데이터 패칭 ───────────────────────────────────
+  // 1. 전공 핵심 키워드(keywords + careers)로 우선 검색 (Overlap + Partial Title)
+  // 2. 부족 시 해당 계열의 "핵심 연관 과목"으로만 한정해서 Fallback (Strict)
+  
+  const coreSubjectsMap: Record<string, string[]> = {
+    mechanical: ["물리학", "역학과 에너지"],
+    electrical: ["물리학", "전자기와 양자", "정보"],
+    cs:         ["정보", "인공지능 수학"],
+    chemical:   ["화학", "물질과 에너지", "화학 반응의 세계"],
+    bio:        ["생명과학", "세포와 물질대사", "생물의 유전"],
+    medical:    ["생명과학", "화학", "세포와 물질대사"],
+    "architecture-civil": ["물리학", "지구과학", "기하"],
+    "industrial-system":  ["확률과 통계", "정보"],
+    "natural-science-math-physics": ["물리학", "수학"],
+    "environment-energy": ["지구과학", "화학", "기후변화와 환경생태"],
+  };
+
+  const majorCoreSubjects = coreSubjectsMap[id] || major.recommendedSubjects.career;
+  
+  const recommendedReports = await getRecommendedReportsForMajor(
+    Array.from(new Set([...major.keywords, ...major.combo.careers])),
+    majorCoreSubjects,
+    3
+  );
 
   return (
     <main className="min-h-screen bg-gray-50 pb-20">
@@ -219,30 +245,34 @@ export default async function MajorResultPage({ params }: PageProps) {
           {/* ── 오른쪽: 추천 탐구 주제 + 다른 계열 ── */}
           <div className="space-y-4">
 
-            {/* 추천 탐구 주제 */}
-            {major.recommendedTopics.length > 0 && (
-              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <h2 className="mb-3.5 text-sm font-bold text-gray-800">
-                  📝 추천 탐구 주제
-                </h2>
-                <div className="space-y-2.5">
-                  {major.recommendedTopics.map((topic) => (
+            {/* 추천 탐구 주제 (실시간 DB 데이터) */}
+            <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <h2 className="mb-3.5 text-sm font-bold text-gray-800">
+                📝 추천 탐구 주제
+              </h2>
+              <div className="space-y-2.5">
+                {recommendedReports.length === 0 ? (
+                  <p className="py-6 text-center text-xs text-gray-400">
+                    매칭되는 탐구 주제를 찾고 있습니다...
+                  </p>
+                ) : (
+                  recommendedReports.map((report) => (
                     <Link
-                      key={`${topic.keyword}-${topic.title}`}
-                      href={`/lab?keyword=${encodeURIComponent(topic.keyword)}`}
+                      key={report.id}
+                      href={`/reports/${report.id}`}
                       className="flex items-start gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 transition-colors hover:border-blue-200 hover:bg-blue-50"
                     >
                       <span className="mt-px shrink-0 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-600">
-                        {topic.subject}
+                        {report.subject}
                       </span>
-                      <p className="text-xs font-medium leading-relaxed text-gray-700">
-                        {topic.title}
+                      <p className="text-xs font-medium leading-relaxed text-gray-700 line-clamp-2">
+                        {report.title}
                       </p>
                     </Link>
-                  ))}
-                </div>
+                  ))
+                )}
               </div>
-            )}
+            </div>
 
             {/* 다른 계열 보기 */}
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">

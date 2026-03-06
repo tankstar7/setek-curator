@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SectionTitle } from "@/components/SectionTitle";
 import { InfoCard } from "@/components/InfoCard";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import {
   GraduationCap,
@@ -53,9 +54,9 @@ const CREDIT_CARDS = [
     badge: "수업량 적정화",
     title: "192학점 시대",
     points: [
-      "기존 204단위 → 192학점으로 슬림화",
-      "미이수(I등급) 제도 신설로 최소 성취 보장",
-      "자율 이수 90학점 확대, 선택권 폭발적 증가",
+      <>기존 204단위 → <strong className="font-bold text-gray-900">192학점으로 슬림화</strong></>,
+      { text: "미이수(I등급) 제도 신설로 최소 성취 보장", nowrap: true },
+      { text: <><strong className="font-bold text-gray-900">자율 이수 90학점 확대</strong>, 선택권 폭발적 증가</>, nowrap: true },
     ],
   },
   {
@@ -63,9 +64,9 @@ const CREDIT_CARDS = [
     badge: "핵심 전략 변화",
     title: "5등급 상대평가 전환",
     points: [
-      "기존 9등급 → 5등급으로 내신 변별력 하락",
-      "진짜 승부처는 교과 내신이 아닌 '심화 세특'",
-      "탐구의 깊이와 전공 연계성이 당락을 결정",
+      { text: <>기존 9등급 → 5등급으로 <strong className="font-bold text-gray-900">내신 변별력 하락</strong></>, nowrap: true },
+      { text: <>진짜 승부처는 교과 내신이 아닌 <strong className="font-bold text-gray-900">&apos;심화 세특&apos;</strong></>, nowrap: true },
+      { text: <><strong className="font-bold text-gray-900">탐구의 깊이</strong>와 <strong className="font-bold text-gray-900">전공 연계성</strong>이 당락을 결정</>, nowrap: true },
     ],
   },
   {
@@ -73,9 +74,9 @@ const CREDIT_CARDS = [
     badge: "과목 선택 혁명",
     title: "전공의 세분화",
     points: [
-      "물리학Ⅱ → '역학과 에너지' + '전자기와 양자'로 분할",
-      "지망 전공에 맞는 세부 과목 선택이 필수 전략",
-      "잘못된 과목 선택 = 지원 불가 또는 불리",
+      { text: <>물리학Ⅱ →<br />&apos;역학과 에너지&apos; + &apos;전자기와 양자&apos;로 분할</>, nowrap: false },
+      { text: <><strong className="font-bold text-gray-900">지망 전공에 맞는 세부 과목 선택</strong>이 필수 전략</>, nowrap: true },
+      { text: "잘못된 과목 선택 = 지원 불가 또는 불리", nowrap: true },
     ],
   },
 ];
@@ -328,14 +329,27 @@ export default function GuidePage() {
                 icon={card.icon}
                 badge={card.badge}
                 title={card.title}
+                contentClassName="p-8 sm:px-4"
               >
-                <ul className="mt-4 space-y-2.5">
-                  {card.points.map((p) => (
-                    <li key={p} className="flex items-start gap-2 text-sm text-gray-600">
-                      <ChevronRight className="mt-0.5 size-4 shrink-0 text-blue-500" />
-                      {p}
-                    </li>
-                  ))}
+                <ul className="mt-4 space-y-3">
+                  {card.points.map((p, idx) => {
+                    const isObj = typeof p === 'object' && p !== null && 'text' in (p as any);
+                    const content = isObj ? (p as any).text : p;
+                    const nowrap = isObj ? (p as any).nowrap : false;
+                    
+                    return (
+                      <li 
+                        key={idx} 
+                        className={cn(
+                          "flex items-start gap-1.5 text-[13.5px] text-gray-600 leading-snug",
+                          nowrap ? "whitespace-nowrap" : "break-keep"
+                        )}
+                      >
+                        <ChevronRight className="mt-0.5 size-3.5 shrink-0 text-blue-500" />
+                        <span className="flex-1">{content}</span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </InfoCard>
             ))}

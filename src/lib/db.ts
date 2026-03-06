@@ -306,6 +306,79 @@ export async function getReportById(id: string): Promise<any | null> {
   return data;
 }
 
+/** 
+ * 전공 계열별 맞춤 추천 보고서 조회 (Supabase)
+ * 1. 전공 학과 키워드 매칭 (배열 overlap OR 제목 ilike)
+ * 2. 부족 시 "계열 핵심 과목" 매칭으로만 Fallback (Strict)
+ */
+export async function getRecommendedReportsForMajor(
+  majorKeywords: string[],
+  subjects: string[],
+  limitCount: number = 3
+): Promise<any[]> {
+  try {
+    if (!majorKeywords.length && !subjects.length) return [];
+
+    // 1. 학과 키워드 매칭 (배열 교집합 OR 제목 부분 일치)
+    const orConditions = [];
+    
+    // 배열 overlap 조건 (Exact matches in array)
+    const cleanKeywords = majorKeywords.map(k => k.replace(/,/g, '').trim()).filter(Boolean);
+    if (cleanKeywords.length > 0) {
+      const arrayLiteral = `{${cleanKeywords.map(k => `"${k}"`).join(',')}}`;
+      orConditions.push(`target_majors.ov.${arrayLiteral}`);
+      
+      // 제목 부분 일치 조건 (Partial matches in title)
+      cleanKeywords.forEach(k => {
+        if (k.length >= 2) orConditions.push(`title.ilike.%${k}%`);
+      });
+    }
+
+    const { data: primaryData, error: primaryError } = await supabase
+      .from('premium_reports')
+      .select('*')
+      .or(orConditions.join(','))
+      .order('created_at', { ascending: false })
+      .limit(limitCount);
+
+    if (primaryError) {
+      console.error('[getRecommendedReportsForMajor] Primary query error:', primaryError.message);
+    }
+
+    let results = primaryData || [];
+
+    // 2. Fallback: 데이터가 부족할 경우 "해당 계열의 핵심 과목군"으로만 한정해서 패칭 (Strict)
+    if (results.length < limitCount && subjects.length > 0) {
+      const needed = limitCount - results.length;
+      const existingIds = results.map(r => r.id);
+      
+      // 계층형 과목군으로 확장 (예: 물리학 -> 물리, 역학과 에너지 등 포함)
+      const expandedSubjects = Array.from(new Set(subjects.flatMap(s => getSubjectGroup(s))));
+
+      let fallbackQuery = supabase
+        .from('premium_reports')
+        .select('*')
+        .in('subject', expandedSubjects)
+        .order('created_at', { ascending: false })
+        .limit(needed);
+
+      if (existingIds.length > 0) {
+        fallbackQuery = fallbackQuery.not('id', 'in', `(${existingIds.join(',')})`);
+      }
+
+      const { data: fallbackData } = await fallbackQuery;
+      if (fallbackData) {
+        results = [...results, ...fallbackData];
+      }
+    }
+
+    return results.slice(0, limitCount);
+  } catch (err) {
+    console.error('[getRecommendedReportsForMajor] 예상치 못한 에러:', err);
+    return [];
+  }
+}
+
 /**
  * 보고서 저장
  * - id 지정 시: upsert

@@ -9,6 +9,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { Button } from "@/components/ui/button";
 import { PostList } from "@/components/board/PostList";
 import { getPosts, type Post, type BoardCategory } from "@/lib/boardActions";
+import { checkIsAdmin } from "@/lib/authUtils";
 import { supabase } from "@/lib/supabase";
 import { PenLine, Search, X } from "lucide-react";
 
@@ -57,15 +58,9 @@ export default function BoardListPage({ params }: { params: Promise<{ category: 
   // ── 어드민 권한 확인 (카테고리 변경 시만 재실행) ──────────────────────────
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase
-        .from("profiles")
-        .select("account_tier")
-        .eq("id", user.id)
-        .maybeSingle()
-        .then(({ data: profile }) => {
-          if (profile?.account_tier === "admin") setIsAdmin(true);
-        });
+      if (user) {
+        setIsAdmin(checkIsAdmin(user.email));
+      }
     });
   }, [category]);
 

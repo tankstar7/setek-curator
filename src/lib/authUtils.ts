@@ -18,3 +18,10 @@ export async function forceSignOut(): Promise<void> {
 
   window.location.href = '/login';
 }
+
+/** 관리자 이메일 목록 확인 */
+export function checkIsAdmin(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(",").map(e => e.trim().toLowerCase()) || [];
+  return adminEmails.includes(email.toLowerCase());
+}

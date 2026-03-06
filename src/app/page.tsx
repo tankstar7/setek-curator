@@ -86,31 +86,37 @@ export default function Home() {
       <section className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-8">
         <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 sm:flex-row">
           <div className="text-white">
-            <p className="text-sm font-semibold uppercase tracking-widest text-blue-200">무료 자료 공개</p>
             <h2 className="mt-1 text-xl font-bold">📋 15개정 vs 22개정 교육과정 비교표 보기</h2>
             <p className="mt-1 text-sm text-blue-100">무엇이 바뀌었는지, 어떤 과목을 들어야 하는지 한눈에 파악하세요.</p>
           </div>
           <Link href="/guide">
             <Button className="shrink-0 bg-white text-blue-700 font-semibold hover:bg-blue-50">
-              무료 비교표 확인 →
+              22개정 가이드 확인 →
             </Button>
           </Link>
         </div>
       </section>
 
-      {/* ── Stats Bar ── */}
-      <section className="border-b bg-white px-4 py-6">
-        <div className="mx-auto grid max-w-4xl grid-cols-3 gap-4 text-center">
-          {[
-            { value: "120+", label: "세특 탐구 주제" },
-            { value: "30+", label: "지원 전공" },
-            { value: "8종", label: "교과서 출판사 맞춤" },
-          ].map((stat) => (
-            <div key={stat.label}>
-              <p className="text-2xl font-extrabold text-[#1e3a5f] sm:text-3xl">{stat.value}</p>
-              <p className="mt-1 text-xs text-gray-500 sm:text-sm">{stat.label}</p>
-            </div>
-          ))}
+      {/* ── How it Works (이동됨) ── */}
+      <section className="bg-[#1e3a5f] px-4 py-20 text-white">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="mb-12 text-center text-2xl font-bold sm:text-3xl">3단계로 완성하는 차별화된 세특</h2>
+          <div className="grid gap-12 sm:grid-cols-3">
+            {[
+              { step: "01", icon: "🎯", title: "전공 입력", desc: "희망 전공을 검색하면 22개정 교육과정 기반 필수 과목 스킬 트리를 확인할 수 있어요." },
+              { step: "02", icon: "📚", title: "탐구 주제 선택", desc: "과목·단원·교과서 출판사·트렌드 키워드를 필터링해 최적의 탐구 주제를 발굴해요." },
+              { step: "03", icon: "✨", title: "보고서 생성", desc: "현직 연구원 시선의 심화 분석이 담긴 프리미엄 세특 초안을 즉시 다운로드하세요." },
+            ].map((item) => (
+              <div key={item.step} className="text-center">
+                <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/20 text-3xl">
+                  {item.icon}
+                </div>
+                <p className="mb-1 text-xs font-bold uppercase tracking-widest text-blue-300">STEP {item.step}</p>
+                <h3 className="mb-2 text-lg font-bold">{item.title}</h3>
+                <p className="text-sm leading-relaxed text-blue-100">{item.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -170,29 +176,6 @@ export default function Home() {
             <Link href="/explorer">
               <Button variant="outline" className="border-[#1e3a5f] text-[#1e3a5f]">전체 탐색 →</Button>
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ── How it Works ── */}
-      <section className="bg-[#1e3a5f] px-4 py-16 text-white">
-        <div className="mx-auto max-w-5xl">
-          <h2 className="mb-10 text-center text-2xl font-bold sm:text-3xl">3단계로 완성하는 차별화된 세특</h2>
-          <div className="grid gap-8 sm:grid-cols-3">
-            {[
-              { step: "01", icon: "🎯", title: "전공 입력", desc: "희망 전공을 검색하면 22개정 교육과정 기반 필수 과목 스킬 트리를 확인할 수 있어요." },
-              { step: "02", icon: "📚", title: "탐구 주제 선택", desc: "과목·단원·교과서 출판사·트렌드 키워드를 필터링해 최적의 탐구 주제를 발굴해요." },
-              { step: "03", icon: "✨", title: "보고서 생성", desc: "현직 연구원 시선의 심화 분석이 담긴 프리미엄 세특 초안을 즉시 다운로드하세요." },
-            ].map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/20 text-3xl">
-                  {item.icon}
-                </div>
-                <p className="mb-1 text-xs font-bold uppercase tracking-widest text-blue-300">STEP {item.step}</p>
-                <h3 className="mb-2 text-lg font-bold">{item.title}</h3>
-                <p className="text-sm leading-relaxed text-blue-100">{item.desc}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>

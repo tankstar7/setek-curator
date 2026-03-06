@@ -2,28 +2,26 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { SectionTitle } from "@/components/SectionTitle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createPost, type BoardCategory } from "@/lib/boardActions";
+import { getPostById, updatePost, type BoardCategory } from "@/lib/boardActions";
 import { checkIsAdmin } from "@/lib/authUtils";
 import { supabase } from "@/lib/supabase";
-import { ChevronLeft, SendHorizontal } from "lucide-react";
+import { ChevronLeft, Save } from "lucide-react";
 
-export default function NewPostPage({ params }: { params: Promise<{ category: string }> }) {
-  const { category } = use(params) as { category: BoardCategory };
+export default function EditPostPage({ params }: { params: Promise<{ category: string; id: string }> }) {
+  const { category, id } = use(params) as { category: BoardCategory; id: string };
   const router = useRouter();
   
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    async function checkAuth() {
+    async function init() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         alert("로그인이 필요합니다.");
@@ -31,20 +29,28 @@ export default function NewPostPage({ params }: { params: Promise<{ category: st
         return;
       }
 
-      // 관리자 권한 체크 (notice, event인 경우)
-      if (category === "notice" || category === "event") {
-        if (!checkIsAdmin(user.email)) {
-          alert("권한이 없습니다.");
-          router.replace(`/board/${category}`);
-          return;
-        }
+      const post = await getPostById(id);
+      if (!post) {
+        alert("게시글을 찾을 수 없습니다.");
+        router.replace(`/board/${category}`);
+        return;
       }
 
-      setUser(user);
+      const isAdmin = checkIsAdmin(user.email);
+      const isAuthor = post.author_id === user.id;
+
+      if (!isAdmin && !isAuthor) {
+        alert("수정 권한이 없습니다.");
+        router.replace(`/board/${category}/${id}`);
+        return;
+      }
+
+      setTitle(post.title);
+      setContent(post.content);
       setLoading(false);
     }
-    checkAuth();
-  }, [category, router]);
+    init();
+  }, [category, id, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,28 +65,32 @@ export default function NewPostPage({ params }: { params: Promise<{ category: st
       const token = session?.access_token;
 
       if (!token) {
-        alert("로그인 세션이 유효하지 않습니다. 다시 로그인해 주세요.");
+        alert("로그인 세션이 유효하지 않습니다.");
         return;
       }
 
-      await createPost({
-        category,
+      await updatePost(id, {
         title: title.trim(),
         content: content.trim(),
       }, token);
 
-      alert("게시글이 등록되었습니다.");
-      router.push(`/board/${category}`);
+      alert("게시글이 수정되었습니다.");
+      router.push(`/board/${category}/${id}`);
       router.refresh();
     } catch (err: any) {
-      console.error("[NewPost] 등록 에러:", err);
-      alert(`등록 실패: ${err.message || "알 수 없는 오류가 발생했습니다."}`);
+      alert(`수정 실패: ${err.message || "오류가 발생했습니다."}`);
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <p className="animate-pulse text-gray-400">불러오는 중...</p>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gray-50 pb-20 font-sans">
@@ -93,8 +103,8 @@ export default function NewPostPage({ params }: { params: Promise<{ category: st
             <ChevronLeft className="size-4" />
             뒤로 가기
           </button>
-          <h1 className="text-3xl font-extrabold tracking-tight">글쓰기</h1>
-          <p className="mt-2 text-blue-100/70">새로운 게시글을 작성해 주세요.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">글 수정하기</h1>
+          <p className="mt-2 text-blue-100/70">게시글 내용을 수정해 주세요.</p>
         </div>
       </section>
 
@@ -139,10 +149,10 @@ export default function NewPostPage({ params }: { params: Promise<{ category: st
                   disabled={saving}
                   className="h-14 flex-[2] rounded-xl bg-blue-600 font-bold text-white hover:bg-blue-700 shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  {saving ? "등록 중..." : (
+                  {saving ? "수정 중..." : (
                     <>
-                      <SendHorizontal className="mr-2 size-5" />
-                      게시글 등록하기
+                      <Save className="mr-2 size-5" />
+                      수정 완료
                     </>
                   )}
                 </Button>
