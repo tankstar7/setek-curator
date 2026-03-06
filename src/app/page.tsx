@@ -55,7 +55,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-50">
       {/* ── Hero Section ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#1e3a5f] via-[#2d5282] to-[#1a3a6b] px-4 py-24 text-white sm:py-32">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#1e3a5f] via-[#2d5282] to-[#1a3a6b] px-4 py-12 text-white sm:py-16">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl" />
           <div className="absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-blue-600/10 blur-3xl" />
@@ -76,9 +76,6 @@ export default function Home() {
             현직 연구원이 설계한 심화 탐구로 생기부를 차별화하세요.
           </p>
           <SearchSection />
-          <p className="mt-6 text-xs text-blue-300">
-            현재 <span className="font-bold text-white">의약학 · 공학 · 자연과학</span> 계열 전공 지원 중
-          </p>
         </div>
       </section>
 
