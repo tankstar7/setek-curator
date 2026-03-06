@@ -49,28 +49,22 @@ export default async function MajorResultPage({ params }: PageProps) {
   const major = standardMajors.find((m) => m.id === id);
   if (!major) notFound();
 
-  // ── 실시간 추천 탐구 주제 데이터 패칭 ───────────────────────────────────
-  // 1. 전공 핵심 키워드(keywords + careers)로 우선 검색 (Overlap + Partial Title)
-  // 2. 부족 시 해당 계열의 "핵심 연관 과목"으로만 한정해서 Fallback (Strict)
-  
-  const coreSubjectsMap: Record<string, string[]> = {
-    mechanical: ["물리학", "역학과 에너지"],
-    electrical: ["물리학", "전자기와 양자", "정보"],
-    cs:         ["정보", "인공지능 수학"],
-    chemical:   ["화학", "물질과 에너지", "화학 반응의 세계"],
-    bio:        ["생명과학", "세포와 물질대사", "생물의 유전"],
-    medical:    ["생명과학", "화학", "세포와 물질대사"],
-    "architecture-civil": ["물리학", "지구과학", "기하"],
-    "industrial-system":  ["확률과 통계", "정보"],
-    "natural-science-math-physics": ["물리학", "수학"],
-    "environment-energy": ["지구과학", "화학", "기후변화와 환경생태"],
-  };
+  // ── 동적 매칭 알고리즘 기반 데이터 패칭 ───────────────────────────────────
+  // 1. 현재 전공 데이터에서 동적으로 키워드 추출 (하드코딩 X)
+  const dynamicKeywords = Array.from(new Set([
+    ...major.keywords, 
+    ...major.combo.careers
+  ]));
 
-  const majorCoreSubjects = coreSubjectsMap[id] || major.recommendedSubjects.career;
+  // 2. 현재 전공 데이터에서 동적으로 핵심 과목 추출
+  const dynamicSubjects = Array.from(new Set([
+    ...major.recommendedSubjects.career,
+    ...major.combo.subjects
+  ]));
   
   const recommendedReports = await getRecommendedReportsForMajor(
-    Array.from(new Set([...major.keywords, ...major.combo.careers])),
-    majorCoreSubjects,
+    dynamicKeywords,
+    dynamicSubjects,
     3
   );
 
@@ -252,9 +246,11 @@ export default async function MajorResultPage({ params }: PageProps) {
               </h2>
               <div className="space-y-2.5">
                 {recommendedReports.length === 0 ? (
-                  <p className="py-6 text-center text-xs text-gray-400">
-                    매칭되는 탐구 주제를 찾고 있습니다...
-                  </p>
+                  <div className="py-8 text-center px-2">
+                    <p className="text-[11px] leading-relaxed text-gray-400">
+                      해당 계열에 최적화된 심화 탐구 보고서를 준비 중입니다.
+                    </p>
+                  </div>
                 ) : (
                   recommendedReports.map((report) => (
                     <Link
