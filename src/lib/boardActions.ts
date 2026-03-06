@@ -6,6 +6,18 @@ import { checkIsAdmin } from "./authUtils";
 
 export type BoardCategory = "notice" | "event" | "inquiry";
 
+export interface Post {
+  id: string;
+  category: BoardCategory;
+  title: string;
+  content: string;
+  author_id: string;
+  author_nickname?: string;
+  created_at: string;
+  views: number;
+  is_pinned?: boolean;
+}
+
 /** 게시글 목록 조회 (is_pinned 우선, 최신순, 키워드 검색 지원) */
 export async function getPosts(category: BoardCategory, searchQuery?: string) {
   try {
