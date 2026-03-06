@@ -75,41 +75,48 @@ export async function getPostById(id: string) {
   }
 }
 
-/** 게시글 작성 (관리자 권한 우회 로직 완벽 재구성) */
-export async function createPost(post: Omit<Post, "id" | "created_at" | "views" | "author_nickname" | "author_id">) {
+/** 게시글 작성 (인증 토큰 직접 검증 및 상세 에러 노출) */
+export async function createPost(
+  post: Omit<Post, "id" | "created_at" | "views" | "author_nickname" | "author_id">,
+  token: string // 클라이언트에서 넘겨준 access_token
+) {
   try {
-    // 1. 유저 신원 확보 (일반 클라이언트 사용)
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (!token) throw new Error("인증 토큰이 누락되었습니다.");
+
+    // 1. 유저 신원 확보 (Admin Client를 사용해 토큰 직접 검증)
+    // Server Action에서는 브라우저 쿠키 세션이 공유되지 않을 수 있어 토큰 검증이 가장 확실합니다.
+    const admin = getSupabaseAdmin();
+    const { data: { user }, error: authError } = await admin.auth.getUser(token);
     
     if (authError || !user) {
-      console.error("[createPost] 인증 실패:", authError?.message);
-      throw new Error("로그인이 필요합니다.");
+      console.error("[createPost] 토큰 검증 실패:", authError?.message);
+      throw new Error(`인증 실패: ${authError?.message || "로그인 세션이 만료되었습니다. 다시 로그인해 주세요."}`);
     }
 
     const userId = user.id;
-    console.log(`[createPost] 유저 확보 성공: ${userId}, 카테고리: ${post.category}`);
+    console.log(`[createPost] 유저 검증 성공: ${userId}, 카테고리: ${post.category}`);
 
-    // 2. 마스터키 적용 및 클라이언트 분기
+    // 2. 클라이언트 분기 (notice, event는 Admin 권한으로 RLS 우회)
     const isAdminCategory = post.category === "notice" || post.category === "event";
-    
-    // notice나 event일 경우 Admin Client(Service Role Key) 생성하여 RLS 우회
-    const client = isAdminCategory ? getSupabaseAdmin() : supabase;
+    const client = isAdminCategory ? admin : supabase;
 
-    // 3. 데이터 인서트 (author_id 직접 명시 필수)
+    // 3. 데이터 인서트 (author_id 직접 주입)
     const { data, error: dbError } = await client
       .from("posts")
       .insert({
         category: post.category,
         title:    post.title,
         content:  post.content,
-        author_id: userId, // 확보한 유저 ID를 직접 주입
+        author_id: userId,
       })
       .select()
       .single();
 
     if (dbError) {
-      console.error(`[createPost] DB 저장 에러 (${post.category}):`, dbError.message, dbError.details);
-      throw new Error(`저장 실패: ${dbError.message}`);
+      console.error(`[createPost] DB 에러 상세:`, dbError);
+      const detailMsg = dbError.details ? ` (${dbError.details})` : "";
+      const hintMsg = dbError.hint ? ` [Hint: ${dbError.hint}]` : "";
+      throw new Error(`DB 저장 실패: ${dbError.message}${detailMsg}${hintMsg}`);
     }
 
     return data;

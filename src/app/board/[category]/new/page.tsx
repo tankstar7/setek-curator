@@ -60,16 +60,26 @@ export default function NewPostPage({ params }: { params: Promise<{ category: st
 
     setSaving(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        alert("로그인 세션이 유효하지 않습니다. 다시 로그인해 주세요.");
+        return;
+      }
+
       await createPost({
         category,
         title: title.trim(),
         content: content.trim(),
-      });
+      }, token);
+
       alert("게시글이 등록되었습니다.");
       router.push(`/board/${category}`);
       router.refresh();
-    } catch (err) {
-      alert("등록 중 오류가 발생했습니다.");
+    } catch (err: any) {
+      console.error("[NewPost] 등록 에러:", err);
+      alert(`등록 실패: ${err.message || "알 수 없는 오류가 발생했습니다."}`);
     } finally {
       setSaving(false);
     }
