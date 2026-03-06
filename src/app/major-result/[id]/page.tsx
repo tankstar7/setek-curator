@@ -49,19 +49,14 @@ export default async function MajorResultPage({ params }: PageProps) {
   const major = standardMajors.find((m) => m.id === id);
   if (!major) notFound();
 
-  // ── 동적 매칭 알고리즘 기반 데이터 패칭 ───────────────────────────────────
-  // 1. 현재 전공의 '연계 진로(careers)' 배열에서만 검색 키워드 추출 (Hardcoding 제거)
+  // ── 하이브리드 동적 매칭 알고리즘 데이터 패칭 ───────────────────────────
+  // 1. 현재 전공의 '연계 진로(careers)' 배열에서 검색 키워드 추출
   const dynamicKeywords = Array.from(new Set(major.combo.careers));
 
-  // 2. 핵심 과목 데이터 (필요 시 보조 수단으로만 활용 - 현재는 쿼리에서 비중 축소)
-  const dynamicSubjects = Array.from(new Set([
-    ...major.recommendedSubjects.career,
-    ...major.combo.subjects
-  ]));
-  
+  // 2. 도메인 지식 사전(Subject Dictionary)과 키워드를 결합하여 정밀 패칭
   const recommendedReports = await getRecommendedReportsForMajor(
+    id,
     dynamicKeywords,
-    dynamicSubjects,
     3
   );
 

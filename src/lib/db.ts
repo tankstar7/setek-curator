@@ -306,40 +306,63 @@ export async function getReportById(id: string): Promise<any | null> {
   return data;
 }
 
+// ── 전공 계열별 관련 핵심 과목 사전 (2022 개정 교육과정 명칭 기준) ──────────
+const SUBJECT_DICTIONARY: Record<string, string[]> = {
+  chemical: ["화학", "화학 반응의 세계", "물질과 에너지"],
+  bio: ["생명과학", "세포와 물질대사", "생물의 유전", "기후 변화와 환경 생태"],
+  "earth-marine-atmos": ["지구과학", "지구시스템과학", "행성우주과학", "기후 변화와 환경 생태"],
+  electrical: ["물리학", "전자기와 양자", "정보"],
+  mechanical: ["물리학", "역학과 에너지", "기하"],
+  cs: ["정보", "인공지능 수학", "대수"],
+  medical: ["생명과학", "화학", "세포와 물질대사"],
+  "architecture-civil": ["지구과학", "기하", "물리학"],
+  "environment-energy": ["지구시스템과학", "화학", "기후변화와 환경생태"],
+};
+
 /** 
- * 전공 계열별 맞춤 추천 보고서 조회 (Supabase) - 범용 동적 매칭 알고리즘
- * 1. 우선순위: 전공 학과 이름의 완전 일치 (target_majors overlaps)
- * 2. 차순위: 제목 내 전공/학과 키워드 포함 (ilike)
- * 3. 보안: '전자', '전기' 등 특정 동음이의어 노이즈 단어만 선별적으로 제외
+ * 전공 계열별 맞춤 추천 보고서 조회 (Supabase) - 하이브리드 필터링 알고리즘
+ * 1. 진로/학과 키워드 매칭 (target_majors overlaps OR title ilike)
+ * 2. 전공별 핵심 과목 매칭 (SUBJECT_DICTIONARY 기반 subject eq)
+ * 3. 위 조건들을 OR로 결합하여 도메인 지식 기반의 정밀 검색 수행
  */
 export async function getRecommendedReportsForMajor(
+  majorId: string,
   majorKeywords: string[],
-  subjects: string[],
   limitCount: number = 3
 ): Promise<any[]> {
   try {
-    if (!majorKeywords.length) return [];
-
-    // --- [1단계] 키워드 정제: 특정 위험 단어(전기, 전자)만 제외하고 모두 허용 ---
+    const conditions = [];
+    
+    // [1단계] 진로/학과 키워드 기반 동적 조건 (엄격한 명사 위주)
     const blackList = new Set(['전기', '전자']);
     const strictKeywords = majorKeywords
       .map(k => k.replace(/,/g, '').trim())
       .filter(k => k.length >= 2 && !blackList.has(k));
 
-    if (strictKeywords.length === 0) return [];
+    if (strictKeywords.length > 0) {
+      // A. target_majors 배열 교집합
+      const arrayLiteral = `{${strictKeywords.map(k => `"${k}"`).join(',')}}`;
+      conditions.push(`target_majors.ov.${arrayLiteral}`);
+      
+      // B. 제목 내 키워드 포함 (ilike)
+      strictKeywords.forEach(k => {
+        conditions.push(`title.ilike.%${k}%`);
+      });
+    }
 
-    const conditions = [];
-    
-    // A. target_majors 배열 교집합 (정확한 분류 우선)
-    const arrayLiteral = `{${strictKeywords.map(k => `"${k}"`).join(',')}}`;
-    conditions.push(`target_majors.ov.${arrayLiteral}`);
-    
-    // B. 제목 내 키워드 포함 (ilike)
-    strictKeywords.forEach(k => {
-      conditions.push(`title.ilike.%${k}%`);
-    });
+    // [2단계] 전공 계열별 핵심 과목 기반 조건 (Subject Dictionary)
+    const dictSubjects = SUBJECT_DICTIONARY[majorId] || [];
+    if (dictSubjects.length > 0) {
+      // 계층형 그룹 확장 포함
+      const expanded = Array.from(new Set(dictSubjects.flatMap(s => getSubjectGroup(s))));
+      expanded.forEach(s => {
+        conditions.push(`subject.eq.${s}`);
+      });
+    }
 
-    // 2. 통합 동적 쿼리 실행
+    if (conditions.length === 0) return [];
+
+    // 통합 하이브리드 쿼리 실행 (OR 결합)
     const { data, error } = await supabase
       .from('premium_reports')
       .select('*')
@@ -348,7 +371,7 @@ export async function getRecommendedReportsForMajor(
       .limit(limitCount);
 
     if (error) {
-      console.error('[getRecommendedReportsForMajor] Query error:', error.message);
+      console.error('[getRecommendedReportsForMajor] Hybrid query error:', error.message);
       return [];
     }
 
