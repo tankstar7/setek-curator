@@ -79,17 +79,17 @@ export default function SearchSection() {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4">
       {/* 검색 입력 */}
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <Input
           value={query}
           onChange={(e) => { setQuery(e.target.value); setNotFound(false); }}
           onKeyDown={(e) => e.key === "Enter" && handleSearch(query)}
-          placeholder="희망 전공 계열을 입력하세요 (예: 기계, AI, 의예과...)"
-          className="h-14 rounded-xl border-white/20 bg-white/10 text-base text-white placeholder:text-blue-200 focus-visible:ring-blue-300 backdrop-blur-sm"
+          placeholder="희망 전공 계열 (예: 기계, AI, 의예과)"
+          className="h-14 w-full rounded-xl border-white/20 bg-white/10 text-base text-white placeholder:text-blue-200 focus-visible:ring-blue-300 backdrop-blur-sm"
         />
         <Button
           onClick={() => handleSearch(query)}
-          className="h-14 shrink-0 rounded-xl bg-blue-500 px-6 text-base font-semibold text-white hover:bg-blue-400"
+          className="h-14 w-full sm:w-auto shrink-0 rounded-xl bg-blue-500 px-6 text-base font-semibold text-white hover:bg-blue-400"
         >
           검색
         </Button>

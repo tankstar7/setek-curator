@@ -552,7 +552,7 @@ export default function MyPage() {
         {/* ── 활동 통계 ── */}
         <section>
           <h2 className="mb-4 text-lg font-bold text-gray-900">나의 활동</h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {stats.map((s) => (
               <Card key={s.label} className="border-gray-200 text-center">
                 <CardContent className="pt-5">

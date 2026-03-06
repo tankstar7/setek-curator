@@ -124,8 +124,8 @@ export default async function MajorResultPage({ params }: PageProps) {
               </div>
 
               {/* ② 수학 / 과학 / 정보 × 일반선택 / 진로선택 / 융합선택 매트릭스 */}
-              <div className="overflow-x-auto">
-                <table className="w-full table-fixed border-collapse text-xs">
+              <div className="overflow-x-auto pb-2">
+                <table className="w-full min-w-[500px] table-fixed border-collapse text-xs">
                   <thead>
                     <tr>
                       {/* 레이블 열: 고정 너비 / 수학·과학이 나머지를 1:1로 분할 */}

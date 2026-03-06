@@ -73,7 +73,7 @@ export default function NewReportAdminPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* 1. 과목 및 단원 정보 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">교과목명</label>
               <input type="text" name="subject" required placeholder="예: 생명과학 I"

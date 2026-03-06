@@ -159,7 +159,7 @@ function UserModal({
         {/* 모달 바디 */}
         <div className="max-h-[70vh] overflow-y-auto space-y-4 px-6 py-5">
           {/* 기본 정보 */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               { label: "구분",    value: user.role ?? "—" },
               { label: "지역",    value: user.region ?? "—" },
@@ -486,7 +486,7 @@ export default function AdminPage() {
         <div className="mx-auto max-w-6xl px-6 py-8 space-y-8">
 
           {/* ── 통계 카드 4개 ── */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:grid-cols-4">
             {[
               { label: "전체 가입자", value: total,        sub: "누적 회원 수",    icon: "👥", accent: "from-blue-500 to-blue-600",    text: "text-blue-600",    bg: "bg-blue-50"    },
               { label: "프리미엄",   value: premium,       sub: `일반 ${regular}명`, icon: "⭐", accent: "from-amber-400 to-amber-500",   text: "text-amber-600",   bg: "bg-amber-50"   },

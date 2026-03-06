@@ -294,7 +294,7 @@ export default function GuidePage() {
 
 
           {/* 통계 배너 */}
-          <div className="mt-12 grid grid-cols-3 gap-6 border-t border-white/10 pt-10">
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 border-t border-white/10 pt-10">
             {[
               { num: "192", unit: "학점", desc: "새 이수 체계" },
               { num: "8", unit: "세부과목", desc: "과학 II 전면 재편" },

@@ -60,7 +60,7 @@ export default function LabPage() {
           </p>
 
           {/* 통계 배너 */}
-          <div className="mt-12 grid grid-cols-3 gap-6 border-t border-white/10 pt-10">
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 border-t border-white/10 pt-10">
             {[
               { num: "3",    unit: "가지",  desc: "핵심 역량 분석"    },
               { num: "5",    unit: "개",    desc: "주요 대학 연구 기반" },
@@ -145,20 +145,22 @@ export default function LabPage() {
           />
 
           <Tabs defaultValue="academic" className="w-full">
-            <TabsList className="mb-8 h-12 w-full bg-slate-100 p-1">
-              <TabsTrigger value="academic" className="flex-1 gap-2 text-sm font-semibold tracking-tight">
-                <BookOpen className="size-4" />
-                학업역량
-              </TabsTrigger>
-              <TabsTrigger value="career" className="flex-1 gap-2 text-sm font-semibold tracking-tight">
-                <BarChart3 className="size-4" />
-                진로역량
-              </TabsTrigger>
-              <TabsTrigger value="community" className="flex-1 gap-2 text-sm font-semibold tracking-tight">
-                <Users className="size-4" />
-                공동체역량
-              </TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto pb-2">
+              <TabsList className="mb-6 h-12 w-full min-w-[400px] bg-slate-100 p-1">
+                <TabsTrigger value="academic" className="flex-1 gap-2 text-sm font-semibold tracking-tight whitespace-nowrap">
+                  <BookOpen className="size-4" />
+                  학업역량
+                </TabsTrigger>
+                <TabsTrigger value="career" className="flex-1 gap-2 text-sm font-semibold tracking-tight whitespace-nowrap">
+                  <BarChart3 className="size-4" />
+                  진로역량
+                </TabsTrigger>
+                <TabsTrigger value="community" className="flex-1 gap-2 text-sm font-semibold tracking-tight whitespace-nowrap">
+                  <Users className="size-4" />
+                  공동체역량
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* A. 학업역량 */}
             <TabsContent value="academic">

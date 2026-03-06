@@ -189,7 +189,7 @@ export default function OnboardingPage() {
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
                   신분 <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {ROLES.map((r) => (
                     <button
                       key={r.value}
@@ -226,7 +226,7 @@ export default function OnboardingPage() {
               </div>
 
               {/* 학교명 / 회사·학원명 */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                     학교명
@@ -284,7 +284,7 @@ export default function OnboardingPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {DREAM_MAJORS.map((m) => {
                   const selected = dreamMajors.includes(m.value);
                   const maxed    = dreamMajors.length >= 3 && !selected;
