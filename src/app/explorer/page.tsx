@@ -10,7 +10,8 @@ import { forceSignOut } from "@/lib/authUtils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
-import { Check, Lock, Search } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Check, Lock, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { scienceCurriculumDB } from "@/lib/data/curriculumDetails";
 
 // ── Supabase premium_reports 타입 ─────────────────────────────────────────────
@@ -323,9 +324,16 @@ function StepItem({
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
+const PAGE_SIZE = 10;
+
 export default function ExplorerPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentPage = Math.max(1, Number(searchParams.get("page") ?? "1"));
+
   const [curricula, setCurricula]   = useState<Curriculum[]>([]);
   const [reports, setReports]       = useState<PremiumReport[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [curriculaLoading, setCurriculaLoading] = useState(true);
   const [curriculaError, setCurriculaError]     = useState(false);
   const [reportsLoading, setReportsLoading]     = useState(true);
@@ -397,10 +405,14 @@ export default function ExplorerPage() {
 
       try {
         // ── 쿼리 빌드 ────────────────────────────────────────────────────────
+        const from = (currentPage - 1) * PAGE_SIZE;
+        const to   = from + PAGE_SIZE - 1;
+
         let query = supabase
           .from("premium_reports")
           .select(
-            "id, title, subject, preview_content, target_majors, access_tier, large_unit_name, small_unit_name"
+            "id, title, subject, preview_content, target_majors, access_tier, large_unit_name, small_unit_name",
+            { count: "exact" }
           )
           .order("id", { ascending: false });
 
@@ -413,11 +425,12 @@ export default function ExplorerPage() {
         }
 
         // 텍스트 정제 함수: 번호, 특수문자, 공백 제거
+        // "I. ", "1. " 뿐 아니라 점 없이 공백만 쓰는 "01 텍스트" 형식도 처리
         const cleanForSearch = (text: string) => {
           return text
-            .replace(/^([A-Za-zIVX]+|\d+)\.\s*/, "") // "I. ", "1. " 제거
-            .replace(/^(\d+-\d+|\d+)\.\s*/, "")      // "1-1. ", "01. " 제거
-            .replace(/[\s·\-\(\)]/g, "");            // 공백, 가운뎃점, 하이픈, 괄호 제거
+            .replace(/^([A-Za-zIVX]+|\d+)[\.\s]\s*/, "") // "I. ", "1. ", "01 " 제거 (점 또는 공백 구분자)
+            .replace(/^(\d+-\d+|\d+)[\.\s]\s*/, "")      // "1-1. ", "1-1 " 제거 (점 또는 공백 구분자)
+            .replace(/[\s·\-\(\)]/g, "");                // 공백, 가운뎃점, 하이픈, 괄호 제거
         };
 
         // 대단원 필터
@@ -447,7 +460,7 @@ export default function ExplorerPage() {
           selSubject, selCourse, selMajorUnit, selMinorUnit, searchQuery: searchQuery.trim() || '(없음)',
         });
 
-        const { data, error } = await query;
+        const { data, error, count } = await query.range(from, to);
 
         console.log('[Explorer] Supabase 응답:', {
           rowCount: data?.length ?? 0,
@@ -465,6 +478,7 @@ export default function ExplorerPage() {
         if (!cancelled) {
           // data = [] 이면 에러가 아님 — 빈 결과로 정상 처리
           setReports((data ?? []) as PremiumReport[]);
+          setTotalCount(count ?? 0);
         }
       } catch (e) {
         console.error("[Explorer] 예상치 못한 예외:", e);
@@ -483,7 +497,7 @@ export default function ExplorerPage() {
       cancelled = true; // StrictMode 이중 실행 / 빠른 필터 변경 방어
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-  }, [selSubject, selCourse, selMajorUnit, selMinorUnit, searchQuery]);
+  }, [selSubject, selCourse, selMajorUnit, selMinorUnit, searchQuery, currentPage]);
 
   const loading = curriculaLoading;
 
@@ -617,7 +631,16 @@ export default function ExplorerPage() {
     return dbUnits;
   }, [curricula, selSubject, selCourse, selPublisher, selMajorUnit, selMiddleUnit, currentLargeUnit]);
 
-  // ── 선택 핸들러 (상위 단계 변경 시 하위 단계 자동 초기화) ─────────────────
+  // ── 페이지 이동 헬퍼 ─────────────────────────────────────────────────────
+  function navigatePage(page: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (page <= 1) params.delete("page");
+    else params.set("page", String(page));
+    const qs = params.toString();
+    router.push(qs ? `?${qs}` : "?", { scroll: false });
+  }
+
+  // ── 선택 핸들러 (상위 단계 변경 시 하위 단계 자동 초기화 + 페이지 1 리셋) ─
   function selectSubject(s: string) {
     setSelSubject((prev) => (prev === s ? null : s));
     setSelCourse(null);
@@ -625,6 +648,7 @@ export default function ExplorerPage() {
     setSelMajorUnit(null);
     setSelMiddleUnit(null);
     setSelMinorUnit(null);
+    navigatePage(1);
   }
   function selectCourse(c: string) {
     setSelCourse((prev) => (prev === c ? null : c));
@@ -632,24 +656,29 @@ export default function ExplorerPage() {
     setSelMajorUnit(null);
     setSelMiddleUnit(null);
     setSelMinorUnit(null);
+    navigatePage(1);
   }
   function selectPublisher(p: string) {
     setSelPublisher((prev) => (prev === p ? null : p));
     setSelMajorUnit(null);
     setSelMiddleUnit(null);
     setSelMinorUnit(null);
+    navigatePage(1);
   }
   function selectMajorUnit(m: string) {
     setSelMajorUnit((prev) => (prev === m ? null : m));
     setSelMiddleUnit(null);
     setSelMinorUnit(null);
+    navigatePage(1);
   }
   function selectMiddleUnit(m: string) {
     setSelMiddleUnit((prev) => (prev === m ? null : m));
     setSelMinorUnit(null);
+    navigatePage(1);
   }
   function selectMinorUnit(m: string) {
     setSelMinorUnit((prev) => (prev === m ? null : m));
+    navigatePage(1);
   }
   function resetAll() {
     setSelSubject(null);
@@ -660,6 +689,7 @@ export default function ExplorerPage() {
     setSelMinorUnit(null);
     setSearchQuery("");
     setReportsError(false);
+    navigatePage(1);
   }
 
   const hasFilter = !!(
@@ -706,13 +736,13 @@ export default function ExplorerPage() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); navigatePage(1); }}
                 placeholder="탐구 주제 제목으로 검색..."
                 className="flex-1 bg-transparent text-sm text-white placeholder-blue-300 outline-none"
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery("")}
+                  onClick={() => { setSearchQuery(""); navigatePage(1); }}
                   className="shrink-0 text-blue-300 hover:text-white transition-colors"
                 >
                   ✕
@@ -989,66 +1019,164 @@ export default function ExplorerPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {reports.map((report) => {
-                  const isFree = report.access_tier === "free";
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {reports.map((report) => {
+                    const isFree = report.access_tier === "free";
+
+                    return (
+                      <Link
+                        key={report.id}
+                        href={`/reports/${report.id}`}
+                      >
+                        <Card className="group h-full cursor-pointer border-gray-200 transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
+                          <CardHeader className="pb-2">
+                            <div className="mb-2 flex flex-wrap gap-1.5">
+                              {isFree ? (
+                                <span className="rounded-full border border-green-200 bg-green-100 px-2.5 py-0.5 text-[10px] font-bold text-green-700">
+                                  무료
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-0.5 rounded-full bg-[#1e3a5f] px-2.5 py-0.5 text-[10px] font-bold text-white">
+                                  <Lock className="size-2.5" />
+                                  프리미엄
+                                </span>
+                              )}
+                              <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] text-gray-600">
+                                {report.subject}
+                              </span>
+                            </div>
+                            <CardTitle className="text-sm font-semibold leading-snug text-gray-800 group-hover:text-[#1e3a5f]">
+                              {report.title}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-2 pt-0">
+                            {report.preview_content && (
+                              <p className="line-clamp-2 text-xs text-gray-500">
+                                {report.preview_content}
+                              </p>
+                            )}
+                            <p className="text-xs font-medium text-blue-600">
+                              {report.large_unit_name}
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {report.target_majors.slice(0, 2).map((m) => (
+                                <span
+                                  key={m}
+                                  className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700"
+                                >
+                                  {m}
+                                </span>
+                              ))}
+                              {report.target_majors.length > 2 && (
+                                <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[10px] text-gray-400">
+                                  +{report.target_majors.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                {/* ── 페이지네이션 ── */}
+                {(() => {
+                  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+                  if (totalPages <= 1) return null;
+
+                  // 표시할 페이지 번호 배열 생성 (최대 7개, 생략 시 "ellipsis")
+                  const pages: (number | "ellipsis")[] = [];
+                  if (totalPages <= 7) {
+                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                  } else {
+                    pages.push(1);
+                    if (currentPage > 3) pages.push("ellipsis");
+                    for (
+                      let i = Math.max(2, currentPage - 1);
+                      i <= Math.min(totalPages - 1, currentPage + 1);
+                      i++
+                    ) pages.push(i);
+                    if (currentPage < totalPages - 2) pages.push("ellipsis");
+                    pages.push(totalPages);
+                  }
+
+                  const btnBase =
+                    "flex h-9 min-w-[36px] items-center justify-center rounded-lg border px-2 text-sm font-medium transition-colors";
+                  const btnNormal =
+                    "border-gray-200 bg-white text-gray-600 hover:border-[#1e3a5f] hover:text-[#1e3a5f]";
+                  const btnActive =
+                    "border-[#1e3a5f] bg-[#1e3a5f] text-white";
+                  const btnDisabled =
+                    "cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300";
 
                   return (
-                    <Link
-                      key={report.id}
-                      href={`/reports/${report.id}`}
-                    >
-                      <Card className="group h-full cursor-pointer border-gray-200 transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md">
-                        <CardHeader className="pb-2">
-                          <div className="mb-2 flex flex-wrap gap-1.5">
-                            {isFree ? (
-                              <span className="rounded-full border border-green-200 bg-green-100 px-2.5 py-0.5 text-[10px] font-bold text-green-700">
-                                무료
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-0.5 rounded-full bg-[#1e3a5f] px-2.5 py-0.5 text-[10px] font-bold text-white">
-                                <Lock className="size-2.5" />
-                                프리미엄
-                              </span>
-                            )}
-                            <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] text-gray-600">
-                              {report.subject}
+                    <div className="mt-8 space-y-3">
+                      {/* 범위 안내 */}
+                      <p className="text-center text-xs text-gray-400">
+                        전체{" "}
+                        <span className="font-semibold text-gray-600">
+                          {totalCount}
+                        </span>
+                        개 중{" "}
+                        <span className="font-semibold text-gray-600">
+                          {(currentPage - 1) * PAGE_SIZE + 1}
+                        </span>
+                        –
+                        <span className="font-semibold text-gray-600">
+                          {Math.min(currentPage * PAGE_SIZE, totalCount)}
+                        </span>
+                        번째 탐구 주제
+                      </p>
+
+                      {/* 버튼 행 */}
+                      <div className="flex items-center justify-center gap-1">
+                        {/* 이전 */}
+                        <button
+                          onClick={() => navigatePage(currentPage - 1)}
+                          disabled={currentPage === 1}
+                          className={`${btnBase} ${currentPage === 1 ? btnDisabled : btnNormal}`}
+                          aria-label="이전 페이지"
+                        >
+                          <ChevronLeft className="size-4" />
+                        </button>
+
+                        {/* 페이지 번호 */}
+                        {pages.map((p, idx) =>
+                          p === "ellipsis" ? (
+                            <span
+                              key={`e-${idx}`}
+                              className="flex h-9 w-9 items-center justify-center text-sm text-gray-400"
+                            >
+                              …
                             </span>
-                          </div>
-                          <CardTitle className="text-sm font-semibold leading-snug text-gray-800 group-hover:text-[#1e3a5f]">
-                            {report.title}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2 pt-0">
-                          {report.preview_content && (
-                            <p className="line-clamp-2 text-xs text-gray-500">
-                              {report.preview_content}
-                            </p>
-                          )}
-                          <p className="text-xs font-medium text-blue-600">
-                            {report.large_unit_name}
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            {report.target_majors.slice(0, 2).map((m) => (
-                              <span
-                                key={m}
-                                className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700"
-                              >
-                                {m}
-                              </span>
-                            ))}
-                            {report.target_majors.length > 2 && (
-                              <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[10px] text-gray-400">
-                                +{report.target_majors.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                          ) : (
+                            <button
+                              key={p}
+                              onClick={() => navigatePage(p)}
+                              className={`${btnBase} ${p === currentPage ? btnActive : btnNormal}`}
+                              aria-current={p === currentPage ? "page" : undefined}
+                            >
+                              {p}
+                            </button>
+                          )
+                        )}
+
+                        {/* 다음 */}
+                        <button
+                          onClick={() => navigatePage(currentPage + 1)}
+                          disabled={currentPage === totalPages}
+                          className={`${btnBase} ${currentPage === totalPages ? btnDisabled : btnNormal}`}
+                          aria-label="다음 페이지"
+                        >
+                          <ChevronRight className="size-4" />
+                        </button>
+                      </div>
+                    </div>
                   );
-                })}
-              </div>
+                })()}
+              </>
             )}
           </div>
         </div>
