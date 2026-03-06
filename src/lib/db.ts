@@ -307,10 +307,10 @@ export async function getReportById(id: string): Promise<any | null> {
 }
 
 /** 
- * 전공 계열별 맞춤 추천 보고서 조회 (Supabase) - 초정밀 동적 매칭
+ * 전공 계열별 맞춤 추천 보고서 조회 (Supabase) - 범용 동적 매칭 알고리즘
  * 1. 우선순위: 전공 학과 이름의 완전 일치 (target_majors overlaps)
- * 2. 차순위: 제목 내 전공/학과 완전한 명사 포함 (ilike %공학%, %학과% 등)
- * 3. 주의: '전자', '전기' 등 짧은 단음이의어는 검색에서 배제하여 화학/물리 노이즈 차단
+ * 2. 차순위: 제목 내 전공/학과 키워드 포함 (ilike)
+ * 3. 보안: '전자', '전기' 등 특정 동음이의어 노이즈 단어만 선별적으로 제외
  */
 export async function getRecommendedReportsForMajor(
   majorKeywords: string[],
@@ -320,29 +320,26 @@ export async function getRecommendedReportsForMajor(
   try {
     if (!majorKeywords.length) return [];
 
-    // --- [1단계] 키워드 정제: '전자', '전기' 등 위험한 짧은 단어 필터링 ---
-    // 오직 '공학', '학과'가 붙거나 길이가 충분히 긴(4자 이상) 완전 명사만 검색어로 사용
+    // --- [1단계] 키워드 정제: 특정 위험 단어(전기, 전자)만 제외하고 모두 허용 ---
+    const blackList = new Set(['전기', '전자']);
     const strictKeywords = majorKeywords
       .map(k => k.replace(/,/g, '').trim())
-      .filter(k => {
-        const isFullNoun = k.endsWith('공학') || k.endsWith('학과') || k.endsWith('시스템') || k.endsWith('기술');
-        return isFullNoun || k.length >= 4;
-      });
+      .filter(k => k.length >= 2 && !blackList.has(k));
 
     if (strictKeywords.length === 0) return [];
 
     const conditions = [];
     
-    // A. target_majors 배열 교집합 (가장 정확한 분류 컬럼 우선)
+    // A. target_majors 배열 교집합 (정확한 분류 우선)
     const arrayLiteral = `{${strictKeywords.map(k => `"${k}"`).join(',')}}`;
     conditions.push(`target_majors.ov.${arrayLiteral}`);
     
-    // B. 제목 내 엄격한 키워드 포함 (ilike)
+    // B. 제목 내 키워드 포함 (ilike)
     strictKeywords.forEach(k => {
       conditions.push(`title.ilike.%${k}%`);
     });
 
-    // 2. 통합 정밀 쿼리 실행
+    // 2. 통합 동적 쿼리 실행
     const { data, error } = await supabase
       .from('premium_reports')
       .select('*')
