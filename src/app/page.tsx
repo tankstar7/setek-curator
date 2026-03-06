@@ -81,7 +81,7 @@ export default function Home() {
       <section className="bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-8">
         <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 sm:flex-row">
           <div className="text-white">
-            <h2 className="mt-1 text-xl font-bold">📋 15개정 vs 22개정 교육과정 비교표 보기</h2>
+            <h2 className="mt-1 text-xl font-bold">15개정 vs 22개정 비교표 보기</h2>
             <p className="mt-1 text-sm text-blue-100 break-keep">무엇이 바뀌었는지, 어떤 과목을 들어야 하는지 한눈에 파악하세요.</p>
           </div>
           <Link href="/guide">
