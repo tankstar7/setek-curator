@@ -279,7 +279,7 @@ export default function GuidePage() {
           </Badge>
 
           <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl break-keep">
-            2025년 고교학점제 전면 도입,
+            2025년 고교학점제 <br className="block md:hidden" /> 전면 도입,
             <br />
             <span className="text-blue-300">당신의 세특 로드맵은</span>
             <br className="hidden sm:block" />
@@ -287,7 +287,7 @@ export default function GuidePage() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-blue-100 sm:text-lg break-keep">
-            2015 개정과 2022 개정의 결정적 차이부터 최상위권 필수 생존 전략까지,
+            2015 개정과 2022 개정의 결정적 차이부터 최상위권 필수 생존 전략까지,{" "}
             <br className="hidden sm:block" />
             세특큐레이터가 완벽 분석했습니다.
           </p>
@@ -360,12 +360,13 @@ export default function GuidePage() {
         <section>
           <SectionTitle 
             label="교육과정 핵심 비교"
-            title="15개정 vs 22개정, 무엇이 달라졌나"
-            description="이공계 진로를 목표로 한다면 반드시 확인해야 할 7가지 변경사항"
+            title={<>15개정 vs 22개정, <br className="block md:hidden" /> 무엇이 달라졌나</>}
+            description={<>이공계 진로를 목표로 한다면 <br className="block md:hidden" /> 반드시 확인해야 할 7가지 변경사항</>}
+            className="break-keep"
           />
 
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
-            <table className="w-full text-sm">
+          <div className="w-full overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <table className="w-full min-w-[600px] text-sm">
               <thead>
                 <tr className="bg-[#1e3a5f] text-white">
                   <th className="w-36 px-5 py-4 text-left font-semibold sm:w-44">항목</th>
@@ -663,17 +664,17 @@ export default function GuidePage() {
         </section>
 
         {/* ───────────── 5. 페인포인트 자극 섹션 ───────────── */}
-        <section className="rounded-2xl bg-[#0f2540] px-6 py-14 text-center text-white">
+        <section className="rounded-2xl bg-[#0f2540] px-6 py-16 md:py-20 text-center text-white">
           <div className="mx-auto max-w-2xl">
             <span className="text-5xl" aria-hidden="true">🤯</span>
-            <h2 className="mt-5 text-2xl font-extrabold leading-snug sm:text-3xl">
+            <h2 className="mt-5 text-2xl font-extrabold leading-snug sm:text-3xl break-keep">
               이 수많은 과목 중,
               <br />
               내 지망 전공에 맞는 과목은
               <br />
               <span className="text-blue-300">대체 무엇일까요?</span>
             </h2>
-            <p className="mt-5 text-base leading-relaxed text-blue-100">
+            <p className="mt-5 text-base leading-relaxed text-blue-100 break-keep">
               세특큐레이터는{" "}
               <strong className="text-white">상위 50개 대학 및 전공 입시 가이드</strong>를 분석하여,
               <br className="hidden sm:block" />
@@ -683,7 +684,7 @@ export default function GuidePage() {
 
             <div className="mt-8">
               <Link href="/subject-recommend">
-                <Button className="h-14 rounded-full bg-white px-8 text-base font-extrabold text-[#0f2540] shadow-lg transition-all hover:scale-105 hover:bg-blue-50 sm:px-12 sm:text-lg">
+                <Button className="h-auto w-full md:w-auto rounded-full bg-white px-6 py-4 md:px-12 md:h-14 text-sm md:text-lg font-extrabold text-[#0f2540] shadow-lg transition-all hover:scale-105 hover:bg-blue-50">
                   👉 내 목표 대학/전공 맞춤 선택 과목 확인하기
                 </Button>
               </Link>

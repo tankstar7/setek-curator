@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
+import { ReactNode } from "react";
 
 interface SectionTitleProps {
   label?: string;
-  title: string;
-  description?: string;
+  title: ReactNode;
+  description?: ReactNode;
   className?: string;
   titleClassName?: string;
   descriptionClassName?: string; // 설명 색상 등을 위한 클래스 추가
