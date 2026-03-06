@@ -307,9 +307,10 @@ export async function getReportById(id: string): Promise<any | null> {
 }
 
 /** 
- * 전공 계열별 맞춤 추천 보고서 조회 (Supabase) - 정밀 동적 매칭
- * 1. 우선순위: 전공/진로 키워드와 일치하는 보고서 (target_majors array OR title partial match)
- * 2. 차순위: 키워드 매칭 실패 시, 해당 계열의 핵심 과목군에 속하는 보고서만 패칭 (Strict)
+ * 전공 계열별 맞춤 추천 보고서 조회 (Supabase) - 초정밀 동적 매칭
+ * 1. 우선순위: 전공 학과 이름의 완전 일치 (target_majors overlaps)
+ * 2. 차순위: 제목 내 전공/학과 완전한 명사 포함 (ilike %공학%, %학과% 등)
+ * 3. 주의: '전자', '전기' 등 짧은 단음이의어는 검색에서 배제하여 화학/물리 노이즈 차단
  */
 export async function getRecommendedReportsForMajor(
   majorKeywords: string[],
@@ -317,58 +318,46 @@ export async function getRecommendedReportsForMajor(
   limitCount: number = 3
 ): Promise<any[]> {
   try {
-    if (!majorKeywords.length && !subjects.length) return [];
+    if (!majorKeywords.length) return [];
 
-    // --- [1단계] 전공/진로 중심 정밀 타격 ---
-    const majorConditions = [];
-    const cleanKeywords = majorKeywords
+    // --- [1단계] 키워드 정제: '전자', '전기' 등 위험한 짧은 단어 필터링 ---
+    // 오직 '공학', '학과'가 붙거나 길이가 충분히 긴(4자 이상) 완전 명사만 검색어로 사용
+    const strictKeywords = majorKeywords
       .map(k => k.replace(/,/g, '').trim())
-      .filter(k => k.length >= 2);
-
-    if (cleanKeywords.length > 0) {
-      // A. target_majors 배열 교집합
-      const arrayLiteral = `{${cleanKeywords.map(k => `"${k}"`).join(',')}}`;
-      majorConditions.push(`target_majors.ov.${arrayLiteral}`);
-      
-      // B. 제목 키워드 포함
-      cleanKeywords.forEach(k => {
-        majorConditions.push(`title.ilike.%${k}%`);
+      .filter(k => {
+        const isFullNoun = k.endsWith('공학') || k.endsWith('학과') || k.endsWith('시스템') || k.endsWith('기술');
+        return isFullNoun || k.length >= 4;
       });
+
+    if (strictKeywords.length === 0) return [];
+
+    const conditions = [];
+    
+    // A. target_majors 배열 교집합 (가장 정확한 분류 컬럼 우선)
+    const arrayLiteral = `{${strictKeywords.map(k => `"${k}"`).join(',')}}`;
+    conditions.push(`target_majors.ov.${arrayLiteral}`);
+    
+    // B. 제목 내 엄격한 키워드 포함 (ilike)
+    strictKeywords.forEach(k => {
+      conditions.push(`title.ilike.%${k}%`);
+    });
+
+    // 2. 통합 정밀 쿼리 실행
+    const { data, error } = await supabase
+      .from('premium_reports')
+      .select('*')
+      .or(conditions.join(','))
+      .order('created_at', { ascending: false })
+      .limit(limitCount);
+
+    if (error) {
+      console.error('[getRecommendedReportsForMajor] Query error:', error.message);
+      return [];
     }
 
-    if (majorConditions.length > 0) {
-      const { data: primaryData } = await supabase
-        .from('premium_reports')
-        .select('*')
-        .or(majorConditions.join(','))
-        .order('created_at', { ascending: false })
-        .limit(limitCount);
-
-      if (primaryData && primaryData.length > 0) {
-        return primaryData;
-      }
-    }
-
-    // --- [2단계] 전공 키워드 매칭 실패 시 과목 기반 Strict Fallback ---
-    if (subjects.length > 0) {
-      const expandedSubjects = Array.from(new Set(subjects.flatMap(s => getSubjectGroup(s))));
-      
-      // OR 쿼리 빌딩 (subject.eq.과목1, subject.eq.과목2...)
-      const subjectConditions = expandedSubjects.map(s => `subject.eq.${s}`);
-
-      const { data: fallbackData } = await supabase
-        .from('premium_reports')
-        .select('*')
-        .or(subjectConditions.join(','))
-        .order('created_at', { ascending: false })
-        .limit(limitCount);
-
-      return fallbackData || [];
-    }
-
-    return [];
+    return data || [];
   } catch (err) {
-    console.error('[getRecommendedReportsForMajor] Match failed:', err);
+    console.error('[getRecommendedReportsForMajor] Unexpected error:', err);
     return [];
   }
 }
