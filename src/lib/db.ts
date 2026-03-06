@@ -307,9 +307,9 @@ export async function getReportById(id: string): Promise<any | null> {
 }
 
 /** 
- * 전공 계열별 맞춤 추천 보고서 조회 (Supabase) - 동적 매칭 알고리즘
- * 1. 전공 데이터(keywords, careers)와 과목 데이터를 기반으로 동적 쿼리 빌딩
- * 2. 매칭되는 보고서가 없을 경우 빈 배열 반환 (UX에서 처리)
+ * 전공 계열별 맞춤 추천 보고서 조회 (Supabase) - 정밀 동적 매칭
+ * 1. 우선순위: 전공/진로 키워드와 일치하는 보고서 (target_majors array OR title partial match)
+ * 2. 차순위: 키워드 매칭 실패 시, 해당 계열의 핵심 과목군에 속하는 보고서만 패칭 (Strict)
  */
 export async function getRecommendedReportsForMajor(
   majorKeywords: string[],
@@ -319,55 +319,56 @@ export async function getRecommendedReportsForMajor(
   try {
     if (!majorKeywords.length && !subjects.length) return [];
 
-    // 1. 동적 조건 생성
-    const conditions = [];
-    
-    // A. 학과 배열 교집합 (text array column match)
-    if (majorKeywords.length > 0) {
-      const cleanMajorKeywords = majorKeywords
-        .map(k => k.replace(/,/g, '').trim())
-        .filter(k => k.length >= 2);
+    // --- [1단계] 전공/진로 중심 정밀 타격 ---
+    const majorConditions = [];
+    const cleanKeywords = majorKeywords
+      .map(k => k.replace(/,/g, '').trim())
+      .filter(k => k.length >= 2);
+
+    if (cleanKeywords.length > 0) {
+      // A. target_majors 배열 교집합
+      const arrayLiteral = `{${cleanKeywords.map(k => `"${k}"`).join(',')}}`;
+      majorConditions.push(`target_majors.ov.${arrayLiteral}`);
       
-      if (cleanMajorKeywords.length > 0) {
-        const arrayLiteral = `{${cleanMajorKeywords.map(k => `"${k}"`).join(',')}}`;
-        conditions.push(`target_majors.ov.${arrayLiteral}`);
-        
-        // B. 제목 부분 일치 (Partial title match)
-        cleanMajorKeywords.forEach(k => {
-          conditions.push(`title.ilike.%${k}%`);
-        });
+      // B. 제목 키워드 포함
+      cleanKeywords.forEach(k => {
+        majorConditions.push(`title.ilike.%${k}%`);
+      });
+    }
+
+    if (majorConditions.length > 0) {
+      const { data: primaryData } = await supabase
+        .from('premium_reports')
+        .select('*')
+        .or(majorConditions.join(','))
+        .order('created_at', { ascending: false })
+        .limit(limitCount);
+
+      if (primaryData && primaryData.length > 0) {
+        return primaryData;
       }
     }
 
-    // C. 핵심 과목 일치 (Subject expansion match)
+    // --- [2단계] 전공 키워드 매칭 실패 시 과목 기반 Strict Fallback ---
     if (subjects.length > 0) {
       const expandedSubjects = Array.from(new Set(subjects.flatMap(s => getSubjectGroup(s))));
-      if (expandedSubjects.length > 0) {
-        // subject 컬럼은 보통 string이므로 .in() 형식이지만 .or() 내부에서는 .eq 사용
-        expandedSubjects.forEach(s => {
-          conditions.push(`subject.eq.${s}`);
-        });
-      }
+      
+      // OR 쿼리 빌딩 (subject.eq.과목1, subject.eq.과목2...)
+      const subjectConditions = expandedSubjects.map(s => `subject.eq.${s}`);
+
+      const { data: fallbackData } = await supabase
+        .from('premium_reports')
+        .select('*')
+        .or(subjectConditions.join(','))
+        .order('created_at', { ascending: false })
+        .limit(limitCount);
+
+      return fallbackData || [];
     }
 
-    if (conditions.length === 0) return [];
-
-    // 2. 통합 동적 쿼리 실행 (OR 조건으로 결합)
-    const { data, error } = await supabase
-      .from('premium_reports')
-      .select('*')
-      .or(conditions.join(','))
-      .order('created_at', { ascending: false })
-      .limit(limitCount);
-
-    if (error) {
-      console.error('[getRecommendedReportsForMajor] Query error:', error.message);
-      return [];
-    }
-
-    return data || [];
+    return [];
   } catch (err) {
-    console.error('[getRecommendedReportsForMajor] Unexpected error:', err);
+    console.error('[getRecommendedReportsForMajor] Match failed:', err);
     return [];
   }
 }

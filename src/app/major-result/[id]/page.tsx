@@ -50,13 +50,13 @@ export default async function MajorResultPage({ params }: PageProps) {
   if (!major) notFound();
 
   // ── 동적 매칭 알고리즘 기반 데이터 패칭 ───────────────────────────────────
-  // 1. 현재 전공 데이터에서 동적으로 키워드 추출 (하드코딩 X)
+  // 1. 현재 전공 데이터에서 전공/진로 중심 키워드만 추출 (과목 제외로 정확도 향상)
   const dynamicKeywords = Array.from(new Set([
-    ...major.keywords, 
+    major.categoryName.replace(/ 계열$/, ''), // "공학 계열" -> "공학"
     ...major.combo.careers
   ]));
 
-  // 2. 현재 전공 데이터에서 동적으로 핵심 과목 추출
+  // 2. 핵심 과목 데이터 (필요 시 보조 수단으로만 활용)
   const dynamicSubjects = Array.from(new Set([
     ...major.recommendedSubjects.career,
     ...major.combo.subjects
