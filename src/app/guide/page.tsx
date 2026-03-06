@@ -278,7 +278,7 @@ export default function GuidePage() {
             📋 22개정 공식 분석 리포트 · 무료 공개
           </Badge>
 
-          <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+          <h1 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl break-keep">
             2025년 고교학점제 전면 도입,
             <br />
             <span className="text-blue-300">당신의 세특 로드맵은</span>
@@ -286,7 +286,7 @@ export default function GuidePage() {
             <span className="text-blue-300"> 준비되었습니까?</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-blue-100 sm:text-lg">
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-blue-100 sm:text-lg break-keep">
             2015 개정과 2022 개정의 결정적 차이부터 최상위권 필수 생존 전략까지,
             <br className="hidden sm:block" />
             세특큐레이터가 완벽 분석했습니다.
@@ -417,8 +417,8 @@ export default function GuidePage() {
           />
 
           {/* ── 2022 개정 과목 매트릭스 ── */}
-          <div className="mb-4 overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
-            <table className="w-full table-fixed border-collapse text-sm">
+          <div className="mb-4 w-full overflow-x-auto rounded-2xl border border-gray-200 shadow-sm">
+            <table className="w-full min-w-[600px] table-fixed border-collapse text-sm">
               <thead>
                 <tr>
                   <th className="w-24 bg-gray-800 px-3 py-4 text-left text-xs font-semibold text-gray-300 sm:w-28">
@@ -474,7 +474,7 @@ export default function GuidePage() {
           <div className="mb-8 grid gap-3 sm:grid-cols-2">
             <div className="flex items-start gap-3.5 rounded-xl border border-[#1e3a5f]/20 bg-[#1e3a5f]/5 px-5 py-4">
               <span className="shrink-0 text-2xl leading-none">🎓</span>
-              <div>
+              <div className="break-keep">
                 <p className="mb-1 text-[10px] font-extrabold uppercase tracking-wider text-[#1e3a5f]">
                   필수 이수 기준
                 </p>
@@ -488,7 +488,7 @@ export default function GuidePage() {
             </div>
             <div className="flex items-start gap-3.5 rounded-xl border border-red-200 bg-red-50 px-5 py-4">
               <span className="shrink-0 text-2xl leading-none">🚫</span>
-              <div>
+              <div className="break-keep">
                 <p className="mb-1 text-[10px] font-extrabold uppercase tracking-wider text-red-700">
                   미도달(F) 방지
                 </p>
@@ -555,7 +555,7 @@ export default function GuidePage() {
                         <p className="mb-1.5 text-xs font-bold text-gray-400">
                           📌 기존 (15개정)
                         </p>
-                        <p className="text-sm text-gray-500">{item.old}</p>
+                        <p className="text-sm text-gray-500 break-keep">{item.old}</p>
                       </div>
                       <div
                         className={`rounded-lg p-4 ${
@@ -570,7 +570,7 @@ export default function GuidePage() {
                           ✨ 변경 (22개정)
                         </p>
                         <p
-                          className={`text-sm font-medium ${
+                          className={`text-sm font-medium break-keep ${
                             item.important ? "text-orange-900" : "text-blue-900"
                           }`}
                         >
