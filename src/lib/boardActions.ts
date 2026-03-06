@@ -75,38 +75,46 @@ export async function getPostById(id: string) {
   }
 }
 
-/** 게시글 작성 (관리자 권한 우회 적용) */
+/** 게시글 작성 (관리자 권한 우회 로직 완벽 재구성) */
 export async function createPost(post: Omit<Post, "id" | "created_at" | "views" | "author_nickname" | "author_id">) {
   try {
-    // 1. 현재 사용자 정보 확인
-    const { data: { user } } = await supabase.auth.getUser();
+    // 1. 유저 신원 확보 (일반 클라이언트 사용)
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (!user) {
+    if (authError || !user) {
+      console.error("[createPost] 인증 실패:", authError?.message);
       throw new Error("로그인이 필요합니다.");
     }
 
-    // 2. 카테고리에 따른 클라이언트 분기 (notice, event는 Admin 권한 사용)
+    const userId = user.id;
+    console.log(`[createPost] 유저 확보 성공: ${userId}, 카테고리: ${post.category}`);
+
+    // 2. 마스터키 적용 및 클라이언트 분기
     const isAdminCategory = post.category === "notice" || post.category === "event";
+    
+    // notice나 event일 경우 Admin Client(Service Role Key) 생성하여 RLS 우회
     const client = isAdminCategory ? getSupabaseAdmin() : supabase;
 
-    // 3. 게시글 저장 (author_id 명시)
-    const { data, error } = await client
+    // 3. 데이터 인서트 (author_id 직접 명시 필수)
+    const { data, error: dbError } = await client
       .from("posts")
       .insert({
-        ...post,
-        author_id: user.id
+        category: post.category,
+        title:    post.title,
+        content:  post.content,
+        author_id: userId, // 확보한 유저 ID를 직접 주입
       })
       .select()
       .single();
 
-    if (error) {
-      console.error("[createPost] DB 에러:", error.message, error.details);
-      throw new Error(error.message);
+    if (dbError) {
+      console.error(`[createPost] DB 저장 에러 (${post.category}):`, dbError.message, dbError.details);
+      throw new Error(`저장 실패: ${dbError.message}`);
     }
 
     return data;
   } catch (err: any) {
-    console.error("[createPost] 예외 발생:", err.message);
+    console.error("[createPost] 최종 예외 발생:", err.message);
     throw err;
   }
 }
