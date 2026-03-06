@@ -64,16 +64,14 @@ export default function Home() {
           <Badge className="mb-6 bg-blue-500/20 text-blue-200 border-blue-400/30 hover:bg-blue-500/30">
             🎓 2022 개정 교육과정 완벽 반영
           </Badge>
-          <h1 className="mb-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-            이공계 진로,{" "}
-            <span className="text-blue-300">세특으로</span> 완성하다
+          <h1 className="mb-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl text-center break-keep">
+            이공계 진로, <br />
+            <span className="text-blue-300">세특으로 완성하다</span>
           </h1>
-          <p className="mb-8 text-lg text-blue-100 sm:text-xl">
-            희망 전공을 입력하면{" "}
-            <strong className="text-white">22개정 필수 과목 조합</strong>과{" "}
-            <strong className="text-white">맞춤 세특 탐구 주제</strong>를 바로 확인하세요.
-            <br className="hidden sm:block" />
-            현직 연구원이 설계한 심화 탐구로 생기부를 차별화하세요.
+          <p className="mb-8 text-lg text-blue-100 sm:text-xl text-center break-keep">
+            희망전공을 입력하면 22개정 필수 과목 조합과 맞춤 세특 탐구 주제를 바로 확인하세요.
+            <br />
+            이공계 연구원이 설계한 심화 탐구로 생기부를 차별화하세요.
           </p>
           <SearchSection />
         </div>
@@ -84,11 +82,11 @@ export default function Home() {
         <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 sm:flex-row">
           <div className="text-white">
             <h2 className="mt-1 text-xl font-bold">📋 15개정 vs 22개정 교육과정 비교표 보기</h2>
-            <p className="mt-1 text-sm text-blue-100">무엇이 바뀌었는지, 어떤 과목을 들어야 하는지 한눈에 파악하세요.</p>
+            <p className="mt-1 text-sm text-blue-100 break-keep">무엇이 바뀌었는지, 어떤 과목을 들어야 하는지 한눈에 파악하세요.</p>
           </div>
           <Link href="/guide">
             <Button className="shrink-0 bg-white text-blue-700 font-semibold hover:bg-blue-50">
-              22개정 가이드 확인 →
+              15개정 vs 22개정 비교표 보기 →
             </Button>
           </Link>
         </div>
@@ -110,7 +108,7 @@ export default function Home() {
                 </div>
                 <p className="mb-1 text-xs font-bold uppercase tracking-widest text-blue-300">STEP {item.step}</p>
                 <h3 className="mb-2 text-lg font-bold">{item.title}</h3>
-                <p className="text-sm leading-relaxed text-blue-100">{item.desc}</p>
+                <p className="text-sm leading-relaxed text-blue-100 break-keep">{item.desc}</p>
               </div>
             ))}
           </div>
