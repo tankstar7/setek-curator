@@ -5,7 +5,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
 
 // 환경변수 세팅 (env.local 파일에 키가 있어야 합니다)
-const genAI = new GoogleGenerativeAI("AIzaSyA4BrO5qewpykAndYUiO3fmeXGkLwRHA7w");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '', 
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
