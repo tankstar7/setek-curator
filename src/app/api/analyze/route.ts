@@ -138,9 +138,9 @@ const prompt = `
       throw dbError;
     }
 
-    console.log('5. 분석 및 저장 완료', { id: dbData.id });
+    console.log('5. 분석 및 저장 완료', { id: insertData.id });
     // 성공 시 고유 ID 반환
-    return NextResponse.json({ success: true, id: dbData.id });
+    return NextResponse.json({ success: true, id: insertData.id });
 
   } catch (error) {
     console.error('API 분석 최종 에러:', error);
