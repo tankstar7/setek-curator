@@ -38,9 +38,10 @@ export default function MyPage() {
   const router = useRouter();
   const [user, setUser]         = useState<User | null>(null);
   const [profile, setProfile]   = useState<Profile | null>(null);
-  const [analysisHistory, setAnalysisHistory] = useState<any[]>([]); // AI 분석 기록
-  const [viewedReports, setViewedReports]     = useState<any[]>([]); // 열람한 세특 보고서
-  const [savedReports, setSavedReports]       = useState<any[]>([]); // 저장한 세특 보고서
+  const [analysisHistory, setAnalysisHistory]   = useState<any[]>([]); // AI 분석 전체 (횟수 카운트용)
+  const [savedAnalyses, setSavedAnalyses]       = useState<any[]>([]); // AI 분석 중 저장한 것만
+  const [viewedReports, setViewedReports]       = useState<any[]>([]); // 열람한 세특 보고서
+  const [savedReports, setSavedReports]         = useState<any[]>([]); // 저장한 세특 보고서
   const [loading, setLoading]   = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [editing, setEditing]   = useState(false);
@@ -89,15 +90,26 @@ export default function MyPage() {
         if (!profileData) { router.replace("/onboarding"); return; }
         setProfile(profileData as Profile);
 
-        // 2. AI 생기부 분석 전체 기록 (저장 유무 무관)
+        // 2-a. AI 분석 전체 기록 (횟수 카운트 전용, 저장 유무 무관)
         const { data: analysisData } = await supabase
           .from("analysis_results")
-          .select("id, major, created_at, is_saved")
-          .eq("user_email", user.email)
-          .order("created_at", { ascending: false });
+          .select("id")
+          .eq("user_email", user.email);
 
         if (!cancelled && analysisData) {
           setAnalysisHistory(analysisData);
+        }
+
+        // 2-b. AI 분석 중 저장한 리포트만 (is_saved = true)
+        const { data: savedAnalysisData } = await supabase
+          .from("analysis_results")
+          .select("id, major, created_at, is_saved")
+          .eq("user_email", user.email)
+          .eq("is_saved", true)
+          .order("created_at", { ascending: false });
+
+        if (!cancelled && savedAnalysisData) {
+          setSavedAnalyses(savedAnalysisData);
         }
 
         // 3. 세특 탐구소에서 열람한 보고서 (report_user_history + premium_reports 조인, 최대 10개)
@@ -562,14 +574,14 @@ export default function MyPage() {
           </div>
         </section>
 
-        {/* ── AI 생기부 분석 기록 ── */}
+        {/* ── AI 생기부 분석 기록 (저장한 것만) ── */}
         <section>
           <h2 className="mb-4 text-lg font-bold text-gray-900">AI 생기부 분석 기록</h2>
-          {analysisHistory.length === 0 ? (
+          {savedAnalyses.length === 0 ? (
             <Card className="border-dashed border-gray-300">
               <CardContent className="py-12 text-center text-gray-400">
                 <p className="mb-2 text-3xl">📭</p>
-                <p className="text-sm">아직 분석한 생기부가 없어요.</p>
+                <p className="text-sm">아직 저장한 분석 리포트가 없어요.</p>
                 <Link href="/lab">
                   <Button className="mt-4 bg-[#1e3a5f] text-white hover:bg-[#152c4a]">
                     AI 분석 시작하기
@@ -579,7 +591,7 @@ export default function MyPage() {
             </Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {analysisHistory.slice(0, 6).map((item) => (
+              {savedAnalyses.map((item) => (
                 <Link key={item.id} href={`/lab/result?id=${item.id}`}>
                   <Card className="group h-full cursor-pointer border-gray-200 transition-all hover:border-blue-300 hover:shadow-md">
                     <CardContent className="p-5">
@@ -592,11 +604,6 @@ export default function MyPage() {
                       <h3 className="mb-2 line-clamp-2 text-sm font-bold text-gray-800 group-hover:text-blue-600">
                         {item.major} 계열 분석 리포트
                       </h3>
-                      {item.is_saved && (
-                        <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] text-green-600 border border-green-200">
-                          저장됨
-                        </span>
-                      )}
                     </CardContent>
                   </Card>
                 </Link>

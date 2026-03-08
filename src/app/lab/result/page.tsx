@@ -64,13 +64,16 @@ export default function LabResultPage() {
       try {
         const { data: result, error: fetchError } = await supabase
           .from("analysis_results")
-          .select("result_data, major")
+          .select("result_data, major, is_saved")
           .eq("id", id)
           .single();
 
         if (fetchError || !result) {
           throw new Error("결과를 불러올 수 없습니다.");
         }
+
+        // DB의 저장 상태로 버튼 초기값 동기화
+        setIsSaved(result.is_saved === true);
 
         const rawData = result.result_data || {};
 
