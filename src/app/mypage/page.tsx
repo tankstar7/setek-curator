@@ -8,7 +8,6 @@ import {
   REGIONS, ROLES, DREAM_MAJORS, INTEREST_SUBJECTS,
   ROLE_EMOJI, MAJOR_EMOJI, SUBJECT_EMOJI,
 } from "@/lib/profileOptions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
@@ -34,18 +33,14 @@ function toggle(arr: string[], val: string, max: number): string[] {
     : arr.length < max ? [...arr, val] : arr;
 }
 
-const STATS = [
-  { label: "열람한 보고서", value: "0", icon: "📄" },
-  { label: "저장한 주제",   value: "0", icon: "🔖" },
-  { label: "보유 크레딧",   value: "0", icon: "💎" },
-];
 
 export default function MyPage() {
   const router = useRouter();
   const [user, setUser]         = useState<User | null>(null);
   const [profile, setProfile]   = useState<Profile | null>(null);
-  const [viewedReports, setViewedReports] = useState<any[]>([]); // 추가
-  const [savedReports, setSavedReports]   = useState<any[]>([]); // 저장 기록 추가
+  const [analysisHistory, setAnalysisHistory] = useState<any[]>([]); // AI 분석 기록
+  const [viewedReports, setViewedReports]     = useState<any[]>([]); // 열람한 세특 보고서
+  const [savedReports, setSavedReports]       = useState<any[]>([]); // 저장한 세특 보고서
   const [loading, setLoading]   = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [editing, setEditing]   = useState(false);
@@ -94,26 +89,33 @@ export default function MyPage() {
         if (!profileData) { router.replace("/onboarding"); return; }
         setProfile(profileData as Profile);
 
-        // 2. 열람 기록 가져오기 (최신순)
+        // 2. AI 생기부 분석 전체 기록 (저장 유무 무관)
+        const { data: analysisData } = await supabase
+          .from("analysis_results")
+          .select("id, major, created_at, is_saved")
+          .eq("user_email", user.email)
+          .order("created_at", { ascending: false });
+
+        if (!cancelled && analysisData) {
+          setAnalysisHistory(analysisData);
+        }
+
+        // 3. 세특 탐구소에서 열람한 보고서 (report_user_history + premium_reports 조인, 최대 10개)
         const { data: historyData } = await supabase
           .from("report_user_history")
           .select(`
             viewed_at,
-            premium_reports:report_id (
-              id,
-              title,
-              subject,
-              target_majors
-            )
+            premium_reports:report_id (id, title, subject, target_majors)
           `)
           .eq("user_id", user.id)
-          .order("viewed_at", { ascending: false });
+          .order("viewed_at", { ascending: false })
+          .limit(10);
 
         if (!cancelled && historyData) {
           setViewedReports(historyData);
         }
 
-        // 3. 저장 기록 가져오기
+        // 4. 세특 탐구소에서 저장한 보고서 (report_user_saved + premium_reports 조인)
         const { data: savedData } = await supabase
           .from("report_user_saved")
           .select(`
@@ -268,17 +270,12 @@ export default function MyPage() {
 
   // 통계 데이터 동적 계산
   const stats = [
-    { label: "열람한 보고서", value: viewedReports.length.toString(), icon: "📄" },
-    { label: "저장한 보고서", value: savedReports.length.toString(), icon: "🔖" },
-    { label: "보유 크레딧",   value: "0", icon: "💎" },
+    { label: "AI 분석 횟수",        value: analysisHistory.length.toString(), icon: "🤖" },
+    { label: "열람한 세특 보고서",  value: viewedReports.length.toString(),   icon: "📄" },
+    { label: "저장한 세특 보고서",  value: savedReports.length.toString(),    icon: "🔖" },
+    { label: "보유 크레딧",         value: "0",                               icon: "💎" },
   ];
 
-  function subjectEmoji(subject: string) {
-    const map: Record<string, string> = {
-      화학: "🧪", 물리학: "⚡", 생명과학: "🧬", 지구과학: "🌍", 수학: "📐", 정보: "💻",
-    };
-    return map[subject] || "📚";
-  }
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -552,7 +549,7 @@ export default function MyPage() {
         {/* ── 활동 통계 ── */}
         <section>
           <h2 className="mb-4 text-lg font-bold text-gray-900">나의 활동</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {stats.map((s) => (
               <Card key={s.label} className="border-gray-200 text-center">
                 <CardContent className="pt-5">
@@ -565,34 +562,72 @@ export default function MyPage() {
           </div>
         </section>
 
-        {/* ── 최근 열람 ── */}
+        {/* ── AI 생기부 분석 기록 ── */}
         <section>
-          <h2 className="mb-4 text-lg font-bold text-gray-900">최근 열람 보고서</h2>
-          {viewedReports.length === 0 ? (
+          <h2 className="mb-4 text-lg font-bold text-gray-900">AI 생기부 분석 기록</h2>
+          {analysisHistory.length === 0 ? (
             <Card className="border-dashed border-gray-300">
               <CardContent className="py-12 text-center text-gray-400">
                 <p className="mb-2 text-3xl">📭</p>
-                <p className="text-sm">아직 열람한 보고서가 없어요.</p>
-                <Link href="/explorer">
+                <p className="text-sm">아직 분석한 생기부가 없어요.</p>
+                <Link href="/lab">
                   <Button className="mt-4 bg-[#1e3a5f] text-white hover:bg-[#152c4a]">
-                    탐구 주제 찾으러 가기
+                    AI 분석 시작하기
                   </Button>
                 </Link>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {viewedReports.slice(0, 3).map((history, idx) => {
-                const r = history.premium_reports;
+              {analysisHistory.slice(0, 6).map((item) => (
+                <Link key={item.id} href={`/lab/result?id=${item.id}`}>
+                  <Card className="group h-full cursor-pointer border-gray-200 transition-all hover:border-blue-300 hover:shadow-md">
+                    <CardContent className="p-5">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-2xl">🎓</span>
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(item.created_at).toLocaleDateString("ko-KR")}
+                        </span>
+                      </div>
+                      <h3 className="mb-2 line-clamp-2 text-sm font-bold text-gray-800 group-hover:text-blue-600">
+                        {item.major} 계열 분석 리포트
+                      </h3>
+                      {item.is_saved && (
+                        <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] text-green-600 border border-green-200">
+                          저장됨
+                        </span>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── 저장한 세특 보고서 ── */}
+        <section>
+          <h2 className="mb-4 text-lg font-bold text-gray-900">저장한 세특 보고서</h2>
+          {savedReports.length === 0 ? (
+            <Card className="border-dashed border-gray-300">
+              <CardContent className="py-12 text-center text-gray-400">
+                <p className="mb-2 text-3xl">🔖</p>
+                <p className="text-sm">아직 저장한 세특 보고서가 없어요.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {savedReports.map((saved, idx) => {
+                const r = saved.premium_reports;
                 if (!r) return null;
                 return (
                   <Link key={`${r.id}-${idx}`} href={`/reports/${r.id}`}>
                     <Card className="group h-full cursor-pointer border-gray-200 transition-all hover:border-blue-300 hover:shadow-md">
                       <CardContent className="p-5">
                         <div className="mb-3 flex items-center justify-between">
-                          <span className="text-2xl">{subjectEmoji(r.subject)}</span>
+                          <span className="text-2xl">🔖</span>
                           <span className="text-[10px] text-gray-400">
-                            {new Date(history.viewed_at).toLocaleDateString()}
+                            {new Date(saved.saved_at).toLocaleDateString("ko-KR")}
                           </span>
                         </div>
                         <h3 className="mb-2 line-clamp-2 text-sm font-bold text-gray-800 group-hover:text-blue-600">
@@ -614,29 +649,34 @@ export default function MyPage() {
           )}
         </section>
 
-        {/* ── 저장한 보고서 ── */}
+        {/* ── 열람한 세특 보고서 ── */}
         <section>
-          <h2 className="mb-4 text-lg font-bold text-gray-900">저장한 보고서</h2>
-          {savedReports.length === 0 ? (
+          <h2 className="mb-4 text-lg font-bold text-gray-900">열람한 세특 보고서</h2>
+          {viewedReports.length === 0 ? (
             <Card className="border-dashed border-gray-300">
               <CardContent className="py-12 text-center text-gray-400">
-                <p className="mb-2 text-3xl">🔖</p>
-                <p className="text-sm">아직 저장한 보고서가 없어요.</p>
+                <p className="mb-2 text-3xl">📭</p>
+                <p className="text-sm">아직 열람한 세특 보고서가 없어요.</p>
+                <Link href="/explorer">
+                  <Button className="mt-4 bg-[#1e3a5f] text-white hover:bg-[#152c4a]">
+                    탐구 주제 찾으러 가기
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {savedReports.map((saved, idx) => {
-                const r = saved.premium_reports;
+              {viewedReports.map((history, idx) => {
+                const r = history.premium_reports;
                 if (!r) return null;
                 return (
                   <Link key={`${r.id}-${idx}`} href={`/reports/${r.id}`}>
                     <Card className="group h-full cursor-pointer border-gray-200 transition-all hover:border-blue-300 hover:shadow-md">
                       <CardContent className="p-5">
                         <div className="mb-3 flex items-center justify-between">
-                          <span className="text-2xl">{subjectEmoji(r.subject)}</span>
+                          <span className="text-2xl">📄</span>
                           <span className="text-[10px] text-gray-400">
-                            {new Date(saved.saved_at).toLocaleDateString()}
+                            {new Date(history.viewed_at).toLocaleDateString("ko-KR")}
                           </span>
                         </div>
                         <h3 className="mb-2 line-clamp-2 text-sm font-bold text-gray-800 group-hover:text-blue-600">

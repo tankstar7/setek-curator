@@ -232,9 +232,10 @@ function ResultCard({ major }: { major: MajorData }) {
 
   return (
     <Card className="overflow-hidden border-gray-200 shadow-md">
-      {/* 헤더 */}
-      <div className="border-b border-gray-100 bg-gray-50 px-6 py-4">
-        <div className="mb-3 flex items-start gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+      {/* 헤더: 상단 패딩 pt-4 고정, 하단 pb-2로 축소 */}
+      <div className="border-b border-gray-100 bg-gray-50 px-6 pt-4 pb-2">
+        {/* 안내문: mb-1로 줄여 아래 학과명과 밀착, mt-0 적용 */}
+        <div className="mt-0 mb-1 flex items-start gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
           <Info className="mt-px size-3 shrink-0 text-gray-400" />
           <p className="break-keep text-xs font-medium leading-relaxed text-gray-500">
             본 가이드는 &quot;{major.source}&quot;에 기반하여 작성되었으나, 대학별/연도별 입시 요강이 변동될 수 있으므로 실제 지원 시 반드시 해당 대학의 최신 모집요강을 개별적으로 확인하시기 바랍니다.
@@ -243,7 +244,8 @@ function ResultCard({ major }: { major: MajorData }) {
         <h3 className="text-base font-bold text-gray-900">{major.name}</h3>
       </div>
 
-      <CardContent className="space-y-6 p-6">
+      {/* 콘텐츠: pt-2로 줄여 위 학과명과 밀착, 요소 간 간격 space-y-4로 축소 */}
+      <CardContent className="space-y-4 px-6 pt-2 pb-6">
         {/* ── 입학사정관의 시선 카드 ── */}
         <div className="relative rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-blue-50 p-5 shadow-sm">
           {/* 상단 헤더 행 */}
@@ -376,7 +378,7 @@ export default function SubjectRecommendPage() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-3xl space-y-8 px-4 py-10">
+      <div className="mx-auto max-w-3xl space-y-3 px-4 py-10">
         {/* ── 필터 영역 ── */}
         <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="mb-5 text-sm font-bold uppercase tracking-widest text-gray-500">

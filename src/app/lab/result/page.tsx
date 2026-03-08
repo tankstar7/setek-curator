@@ -7,40 +7,51 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  FileText, 
-  Download, 
-  Calendar, 
-  Heart, 
-  TrendingUp, 
-  CheckCircle2, 
+import {
+  Download,
+  Heart,
+  TrendingUp,
+  CheckCircle2,
   ChevronLeft,
   Star,
   Award,
   Zap,
   Clock,
-  BookOpen,
-  ChevronRight,
   Loader2,
   Lightbulb,
-  Library,
-  Target,
-  Users
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+
+type GradeKey = "grade1" | "grade2" | "grade3";
+type SubjectTabKey = "group1" | "group2" | "group3";
+
+const GRADE_TABS: { key: GradeKey; label: string }[] = [
+  { key: "grade1", label: "1학년" },
+  { key: "grade2", label: "2학년" },
+  { key: "grade3", label: "3학년" },
+];
+
+const SUBJECT_TABS: { key: SubjectTabKey; label: string }[] = [
+  { key: "group1", label: "국어·영어·수학" },
+  { key: "group2", label: "한국사·사회·과학" },
+  { key: "group3", label: "기타 교과" },
+];
 
 export default function LabResultPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const id = searchParams.get("id");
-  
+
   const reportRef = useRef<HTMLDivElement>(null);
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [report, setReport] = useState<any>(null);
   const [major, setMajor] = useState("");
+  const [activeGrade, setActiveGrade] = useState<GradeKey>("grade1");
+  const [activeSubjectTab, setActiveSubjectTab] = useState<SubjectTabKey>("group1");
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveToast, setSaveToast] = useState(false);
 
   useEffect(() => {
     async function fetchResult() {
@@ -62,48 +73,34 @@ export default function LabResultPage() {
         }
 
         const rawData = result.result_data || {};
-        
-        // 데이터 구조 변환 및 매핑
+
         const transformedReport = {
-          ...rawData,
-          // 1. 창의적 체험활동 매핑
+          // 기본 정보
+          attendance: rawData.basic_info?.attendance || "기록 없음",
+          volunteer: rawData.basic_info?.volunteer || "기록 없음",
+          // 창의적 체험활동 (학년별 객체 → 배열로 변환)
           creative: [
-            ...(rawData.creative_activity?.grade1 ? [{ 
-              ...rawData.creative_activity.grade1, 
-              grade: "1학년",
-              title: rawData.creative_activity.grade1.title || "1학년 활동 분석",
-              desc: rawData.creative_activity.grade1.desc || rawData.creative_activity.grade1.limit || ""
-            }] : []),
-            ...(rawData.creative_activity?.grade2 ? [{ 
-              ...rawData.creative_activity.grade2, 
-              grade: "2학년",
-              title: rawData.creative_activity.grade2.title || "2학년 활동 분석",
-              desc: rawData.creative_activity.grade2.desc || rawData.creative_activity.grade2.limit || ""
-            }] : []),
-            ...(rawData.creative_activity?.grade3_action_plan ? [{ 
-              grade: "3학년(예정)",
-              isActionPlan: true,
-              desc: rawData.creative_activity.grade3_action_plan
-            }] : [])
+            ...(rawData.creative_activity?.grade1
+              ? [{ ...rawData.creative_activity.grade1, grade: "1학년" }]
+              : []),
+            ...(rawData.creative_activity?.grade2
+              ? [{ ...rawData.creative_activity.grade2, grade: "2학년" }]
+              : []),
+            ...(rawData.creative_activity?.grade3_action_plan
+              ? [{ grade: "3학년(예정)", isActionPlan: true, desc: rawData.creative_activity.grade3_action_plan }]
+              : []),
           ],
-          // 2. 기본 정보 매핑
-          attendance: rawData.basic_info?.attendance || rawData.attendance || "기록 없음",
-          volunteer: rawData.basic_info?.volunteer || rawData.volunteer || "기록 없음",
-          // 3. 교과 세특 매핑 (limit을 action으로 매핑)
-          subjectAnalysis: {
-            foundational: (rawData.subject_activity?.basic || []).map((s: any) => ({ ...s, action: s.limit || s.action })),
-            exploration: (rawData.subject_activity?.explore || []).map((s: any) => ({ ...s, action: s.limit || s.action })),
-            other: (rawData.subject_activity?.others || []).map((s: any) => ({ ...s, action: s.limit || s.action }))
-          },
-          // 4. 종합 의견 매핑
+          // 종합 의견
           overall: {
-            g1: rawData.behavior_summary?.grade1 || rawData.overall?.g1 || "기록 없음",
-            g2: rawData.behavior_summary?.grade2 || rawData.overall?.g2 || "기록 없음",
-            final: rawData.behavior_summary?.final_comment || rawData.overall?.final || "기록 없음",
-            analysis: rawData.behavior_summary?.analysis || ""
+            g1: rawData.behavior_summary?.grade1 || "기록 없음",
+            g2: rawData.behavior_summary?.grade2 || "기록 없음",
+            final: rawData.behavior_summary?.final_comment || "기록 없음",
+            analysis: rawData.behavior_summary?.analysis || "",
           },
-          // 5. 내신 성적 추이
-          grade_trends: rawData.grade_trends || rawData.grades || []
+          // 성적 추이: { grade1: [{subject, sem1, sem2}], grade2: [...], grade3: [...] }
+          grade_trends: rawData.grade_trends || {},
+          // 교과 세특: { grade1: { basic: [...], explore: [...], others: [...] }, ... }
+          subject_activity: rawData.subject_activity || {},
         };
 
         setReport(transformedReport);
@@ -119,8 +116,24 @@ export default function LabResultPage() {
     fetchResult();
   }, [id]);
 
-  const downloadPDF = () => {
-    window.print();
+  const downloadPDF = () => { window.print(); };
+
+  const handleSave = async () => {
+    if (!id || isSaved) return;
+    try {
+      const res = await fetch("/api/analyze/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error("저장 실패");
+      setIsSaved(true);
+      setSaveToast(true);
+      setTimeout(() => setSaveToast(false), 3000);
+    } catch (err) {
+      console.error("Save error:", err);
+      alert("저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
+    }
   };
 
   if (loading) {
@@ -139,7 +152,7 @@ export default function LabResultPage() {
           <h2 className="text-2xl font-bold text-gray-900">유효하지 않은 결과입니다.</h2>
           <p className="text-gray-500">아이디가 잘못되었거나 삭제된 데이터일 수 있습니다.</p>
         </div>
-        <Button 
+        <Button
           onClick={() => router.push("/lab")}
           className="h-12 rounded-xl bg-[#1e3a5f] px-8 font-bold text-white shadow-lg"
         >
@@ -147,6 +160,15 @@ export default function LabResultPage() {
         </Button>
       </div>
     );
+  }
+
+  // 현재 학년 기반으로 파생 데이터 계산
+  const gradeRows: any[] = report.grade_trends?.[activeGrade] || [];
+  const subjectCards: any[] = report.subject_activity?.[activeGrade]?.[activeSubjectTab] || [];
+
+  function handleGradeChange(key: GradeKey) {
+    setActiveGrade(key);
+    setActiveSubjectTab("group1"); // 학년 변경 시 세특 탭 초기화
   }
 
   return (
@@ -159,8 +181,6 @@ export default function LabResultPage() {
           main { padding-bottom: 0 !important; }
           .mx-auto { max-width: 100% !important; padding: 0 !important; }
           .shadow-sm, .shadow-lg, .shadow-2xl { box-shadow: none !important; border: 1px solid #eee !important; }
-          
-          /* 탭 컨텐츠 강제 노출 */
           [role="tabpanel"] { display: block !important; opacity: 1 !important; transform: none !important; position: static !important; }
           .tabs-list { display: none !important; }
         }
@@ -169,22 +189,47 @@ export default function LabResultPage() {
       {/* ── 상단 컨트롤바 ── */}
       <div className="no-print sticky top-0 z-50 border-b border-gray-200 bg-white/80 backdrop-blur-md px-4 py-4">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <button 
+          <button
             onClick={() => router.push("/lab")}
             className="flex items-center gap-1.5 text-sm font-bold text-gray-500 transition-colors hover:text-[#1e3a5f]"
           >
             <ChevronLeft className="size-4" />
             다시 분석하기
           </button>
-          <Button 
-            onClick={downloadPDF}
-            className="h-11 rounded-xl bg-[#1e3a5f] px-6 font-bold text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#2d5282] active:scale-95"
-          >
-            <Download className="mr-2 size-4" />
-            리포트 PDF 다운로드
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleSave}
+              disabled={isSaved}
+              className={`h-11 rounded-xl px-6 font-bold shadow-lg transition-all active:scale-95 ${
+                isSaved
+                  ? "bg-green-100 text-green-700 shadow-green-100/40 cursor-default"
+                  : "bg-white border border-[#1e3a5f] text-[#1e3a5f] shadow-blue-900/10 hover:bg-[#1e3a5f]/5"
+              }`}
+            >
+              {isSaved ? (
+                <><CheckCircle2 className="mr-2 size-4" />저장 완료</>
+              ) : (
+                <><Heart className="mr-2 size-4" />분석 리포트 저장하기</>
+              )}
+            </Button>
+            <Button
+              onClick={downloadPDF}
+              className="h-11 rounded-xl bg-[#1e3a5f] px-6 font-bold text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#2d5282] active:scale-95"
+            >
+              <Download className="mr-2 size-4" />
+              리포트 PDF 다운로드
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* ── 저장 완료 토스트 ── */}
+      {saveToast && (
+        <div className="no-print fixed bottom-6 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2.5 rounded-2xl bg-gray-900 px-6 py-3.5 shadow-2xl">
+          <CheckCircle2 className="size-4 text-green-400" />
+          <span className="text-sm font-semibold text-white">마이페이지에 성공적으로 저장되었습니다.</span>
+        </div>
+      )}
 
       <div ref={reportRef} id="report-content" className="mx-auto max-w-5xl px-6 py-12 space-y-16">
         {/* ── 리포트 타이틀 ── */}
@@ -219,7 +264,7 @@ export default function LabResultPage() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">출결 상황</p>
-                  <p className="mt-0.5 text-base font-bold text-gray-800">{report?.attendance || "기록 없음"}</p>
+                  <p className="mt-0.5 text-[14px] font-normal text-gray-800">{report.attendance}</p>
                 </div>
               </CardContent>
             </Card>
@@ -230,7 +275,7 @@ export default function LabResultPage() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">봉사 실적</p>
-                  <p className="mt-0.5 text-base font-bold text-gray-800">{report?.volunteer || "기록 없음"}</p>
+                  <p className="mt-0.5 text-[14px] font-normal text-gray-800">{report.volunteer}</p>
                 </div>
               </CardContent>
             </Card>
@@ -243,44 +288,38 @@ export default function LabResultPage() {
             <span className="flex size-8 items-center justify-center rounded-lg bg-[#1e3a5f] text-white text-sm">2</span>
             창의적 체험활동상황 정밀 분석
           </h2>
-          
+
           <div className="relative border-l-2 border-gray-100 ml-4 pl-10 space-y-12">
-            {report?.creative?.map((node: any, i: number) => (
+            {report.creative?.map((node: any, i: number) => (
               <div key={i} className="relative">
-                {/* 타임라인 노드 아이콘 */}
-                <div className="absolute -left-[51px] top-1 flex size-5 items-center justify-center rounded-full bg-white border-4 border-[#1e3a5f] shadow-sm"></div>
-                
+                <div className="absolute -left-[51px] top-1 flex size-5 items-center justify-center rounded-full bg-white border-4 border-[#1e3a5f] shadow-sm" />
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="border-gray-200 text-gray-500 font-bold">{node?.grade}</Badge>
-                  </div>
-                  {node?.isActionPlan ? (
+                  <Badge variant="outline" className="border-gray-200 text-gray-500 font-bold">{node.grade}</Badge>
+                  {node.isActionPlan ? (
                     <div className="rounded-2xl bg-slate-50 border border-slate-200 p-8 shadow-inner">
-                      <p className="text-slate-700 font-bold text-base leading-relaxed break-keep">
-                        {node?.desc}
-                      </p>
+                      <p className="text-slate-700 font-bold text-[14px] leading-relaxed break-keep">{node.desc}</p>
                     </div>
                   ) : (
-                    <>
-                      <h3 className="text-xl font-bold text-gray-900">{node?.title}</h3>
-                      <p className="text-base leading-relaxed text-gray-600 break-keep">{node?.desc}</p>
-                      
-                      {/* 역량별 간이 평가 */}
-                      <div className="flex flex-wrap gap-3 mt-4">
-                        <div className="flex items-center gap-2 rounded-xl bg-blue-50/80 px-4 py-2 text-xs font-bold text-blue-700 ring-1 ring-blue-100 whitespace-nowrap min-w-[80px] justify-center">
-                          <Library className="size-3.5 text-blue-500" />
-                          <span>학업</span> <span className="ml-1 text-blue-900">{node?.academic || "0"}</span>
+                    <div className="space-y-3">
+                      <div className="flex flex-col md:flex-row gap-3 rounded-xl bg-blue-50 p-4">
+                        <div className="flex w-24 shrink-0 items-center justify-center whitespace-nowrap text-sm font-black text-blue-700 text-center">
+                          📚 학업
                         </div>
-                        <div className="flex items-center gap-2 rounded-xl bg-orange-50/80 px-4 py-2 text-xs font-bold text-orange-700 ring-1 ring-orange-100 whitespace-nowrap min-w-[80px] justify-center">
-                          <Target className="size-3.5 text-orange-500" />
-                          <span>진로</span> <span className="ml-1 text-orange-900">{node?.career || "0"}</span>
-                        </div>
-                        <div className="flex items-center gap-2 rounded-xl bg-emerald-50/80 px-4 py-2 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100 whitespace-nowrap min-w-[80px] justify-center">
-                          <Users className="size-3.5 text-emerald-500" />
-                          <span>공동체</span> <span className="ml-1 text-emerald-900">{node?.community || "0"}</span>
-                        </div>
+                        <p className="text-sm leading-relaxed text-gray-700 break-keep">{node.academic}</p>
                       </div>
-                    </>
+                      <div className="flex flex-col md:flex-row gap-3 rounded-xl bg-orange-50 p-4">
+                        <div className="flex w-24 shrink-0 items-center justify-center whitespace-nowrap text-sm font-black text-orange-700 text-center">
+                          🎯 진로
+                        </div>
+                        <p className="text-sm leading-relaxed text-gray-700 break-keep">{node.career}</p>
+                      </div>
+                      <div className="flex flex-col md:flex-row gap-3 rounded-xl bg-green-50 p-4">
+                        <div className="flex w-24 shrink-0 items-center justify-center whitespace-nowrap text-sm font-black text-green-700 text-center">
+                          🤝 공동체
+                        </div>
+                        <p className="text-sm leading-relaxed text-gray-700 break-keep">{node.community}</p>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -289,105 +328,193 @@ export default function LabResultPage() {
         </section>
 
         {/* ── [Section 3] 교과학습발달상황 ── */}
-        <section className="space-y-8">
+        <section className="space-y-6">
           <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
             <span className="flex size-8 items-center justify-center rounded-lg bg-[#1e3a5f] text-white text-sm">3</span>
             교과학습발달상황 정밀 분석
           </h2>
 
-          {/* 내신 성적 추이 표 */}
-          <Card className="overflow-hidden border-gray-200">
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-              <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                <TrendingUp className="size-4 text-blue-600" /> 주요 교과 성적 추이
-              </h3>
+          {/* ── 학년 탭 선택기 ── */}
+          <div className="no-print flex gap-1.5 rounded-xl bg-gray-100 p-1">
+            {GRADE_TABS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => handleGradeChange(key)}
+                className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all ${
+                  activeGrade === key
+                    ? "bg-[#1e3a5f] text-white shadow-sm"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── 주요 교과 성적 추이 표 ── */}
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center gap-2">
+              <TrendingUp className="size-4 text-blue-600" />
+              <h3 className="text-sm font-bold text-gray-700">주요 교과 성적 추이</h3>
+              <Badge variant="outline" className="ml-auto border-gray-200 text-gray-400 text-xs font-bold">
+                {GRADE_TABS.find((g) => g.key === activeGrade)?.label}
+              </Badge>
             </div>
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-white">
-                  <th className="px-6 py-4 text-left font-bold text-gray-400">교과</th>
-                  <th className="px-6 py-4 text-center font-bold text-gray-400">1학년</th>
-                  <th className="px-6 py-4 text-center font-bold text-gray-400">2학년</th>
-                  <th className="px-6 py-4 text-center font-bold text-[#1e3a5f]">3학년(예상)</th>
+                  <th className="px-6 py-4 text-left font-bold text-gray-400">과목</th>
+                  <th className="px-6 py-4 text-center">
+                    <span className="inline-block bg-blue-100 text-blue-800 font-bold px-4 py-1 rounded-full text-xs">1학기</span>
+                  </th>
+                  <th className="px-6 py-4 text-center">
+                    <span className="inline-block bg-blue-100 text-blue-800 font-bold px-4 py-1 rounded-full text-xs">2학기</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {report?.grade_trends?.map((row: any, i: number) => (
-                  <tr key={i} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4 font-bold text-gray-800">{row?.subject}</td>
-                    <td className="px-6 py-4 text-center text-gray-500 tabular-nums">{row?.g1 || row?.grade1}</td>
-                    <td className="px-6 py-4 text-center text-gray-500 tabular-nums">{row?.g2 || row?.grade2}</td>
-                    <td className="px-6 py-4 text-center font-black text-[#1e3a5f] bg-blue-50/30 tabular-nums">{row?.g3 || row?.grade3}</td>
-                  </tr>
-                ))}
-                {(!report?.grade_trends || report.grade_trends.length === 0) && (
+                {gradeRows.length > 0 ? (
+                  gradeRows.map((row: any, i: number) => (
+                    <tr key={i} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4 font-bold text-gray-800">{row.subject}</td>
+                      <td className="px-6 py-4 text-center tabular-nums text-gray-500">{row.sem1?.replace(/\([^)]*\)/g, "").trim()}</td>
+                      <td className="px-6 py-4 text-center tabular-nums font-black text-[#1e3a5f] bg-blue-50/30">{row.sem2?.replace(/\([^)]*\)/g, "").trim()}</td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
-                    <td colSpan={4} className="px-6 py-10 text-center text-gray-400 font-medium">성적 추이 데이터가 없습니다.</td>
+                    <td colSpan={3} className="px-6 py-10 text-center text-gray-400 font-medium">
+                      해당 학년의 성적 데이터가 없습니다.
+                    </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </Card>
+          </div>
 
-          {/* 과목별 세특 분석 탭 */}
-          <Tabs defaultValue="foundational" className="w-full no-print">
-            <TabsList className="grid w-full grid-cols-3 h-14 bg-gray-100 rounded-xl p-1 tabs-list">
-              <TabsTrigger value="foundational" className="rounded-lg font-bold">기초 교과</TabsTrigger>
-              <TabsTrigger value="exploration" className="rounded-lg font-bold">탐구 교과</TabsTrigger>
-              <TabsTrigger value="other" className="rounded-lg font-bold">기타 교과</TabsTrigger>
-            </TabsList>
+          {/* ── 과목별 세특 분석 ── */}
+          <div className="space-y-4 no-print">
+            {/* 기초/탐구/기타 서브 탭 */}
+            <div className="flex gap-1.5 rounded-xl bg-gray-100 p-1">
+              {SUBJECT_TABS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveSubjectTab(key)}
+                  className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all ${
+                    activeSubjectTab === key
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-800"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
 
-            {(Object.keys(report.subjectAnalysis) as Array<keyof typeof report.subjectAnalysis>).map((key) => (
-              <TabsContent key={key} value={key} className="mt-6 space-y-6">
-                {report.subjectAnalysis[key]?.map((sub: any, idx: number) => (
+            {/* 세특 카드 리스트 */}
+            <div className="space-y-6 mt-2">
+              {subjectCards.length > 0 ? (
+                subjectCards.map((sub: any, idx: number) => (
                   <div key={idx} className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between bg-slate-900 px-6 py-4 text-white">
-                      <Badge className="bg-blue-500 font-bold border-none ml-auto">AI 분석 완료</Badge>
+                      <span className="text-base font-bold text-white">{sub.subject}</span>
+                      <Badge className="bg-blue-500 font-bold border-none">AI 분석 완료</Badge>
                     </div>
                     <div className="p-8 space-y-6">
-                      {/* 과목명 표시 강제 추가 */}
-                      <h3 className="text-2xl font-extrabold text-blue-900 mb-2">{sub?.name || sub?.subject}</h3>
-                      
-                      <div className="flex gap-4">
-                        <span className="shrink-0 w-24 text-[10px] font-black text-gray-300 uppercase tracking-widest pt-1">기록 요약</span>
-                        <p className="text-sm text-gray-700 leading-relaxed break-keep font-medium">{sub?.summary}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="flex shrink-0 w-24 items-center justify-center text-center text-[14px] font-black text-gray-400 uppercase tracking-widest">
+                          기록 요약
+                        </div>
+                        <p className="text-[14px] text-gray-700 leading-relaxed break-keep font-medium">{sub.summary}</p>
                       </div>
-                      <div className="flex gap-4">
-                        <span className="shrink-0 w-24 text-[10px] font-black text-[#1e3a5f] uppercase tracking-widest pt-1">역량 평가</span>
-                        <p className="text-sm text-[#1e3a5f] leading-relaxed break-keep font-bold italic">{sub?.eval}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="flex shrink-0 w-24 items-center justify-center text-center text-[14px] font-black text-[#1e3a5f] uppercase tracking-widest">
+                          역량 평가
+                        </div>
+                        <p className="text-[14px] text-[#1e3a5f] leading-relaxed break-keep font-bold italic">{sub.eval}</p>
                       </div>
-                      <div className="flex gap-4 rounded-xl bg-yellow-50 p-5 ring-1 ring-yellow-100">
-                        <span className="shrink-0 w-24 text-[10px] font-black text-orange-600 uppercase tracking-widest pt-1">한계 및 보완</span>
-                        <p className="text-sm leading-relaxed text-gray-900">
+                      <div className="flex items-center gap-4 rounded-xl bg-yellow-50 p-5 ring-1 ring-yellow-100">
+                        <div className="flex shrink-0 w-24 items-center justify-center text-center text-[14px] font-black text-orange-600 uppercase tracking-widest">
+                          한계 및 보완
+                        </div>
+                        <p className="text-[14px] leading-relaxed text-gray-900">
                           <mark className="bg-yellow-200 px-1 rounded font-bold text-gray-900">
-                            {sub?.action}
+                            {sub.limit || "제시된 한계 및 보완점이 없습니다."}
                           </mark>
                         </p>
                       </div>
                     </div>
                   </div>
-                ))}
-              </TabsContent>
-            ))}
-          </Tabs>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white py-16 text-center">
+                  <p className="text-3xl mb-3">📭</p>
+                  <p className="text-sm font-medium text-gray-400">
+                    {GRADE_TABS.find((g) => g.key === activeGrade)?.label}{" "}
+                    {SUBJECT_TABS.find((t) => t.key === activeSubjectTab)?.label} 세특 데이터가 없습니다.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
 
-          {/* 인쇄 전용 전체 리스트 (탭 구분 없이 모두 출력) */}
-          <div className="print-only hidden space-y-8">
-            <h3 className="text-2xl font-bold text-[#1e3a5f] border-b-2 border-blue-50 pb-2">과목별 세특 정밀 분석</h3>
-            {(Object.keys(report.subjectAnalysis) as Array<keyof typeof report.subjectAnalysis>).map((key) => (
+          {/* ── 인쇄 전용: 전 학년 전체 출력 ── */}
+          <div className="print-only hidden space-y-12">
+            <h3 className="text-2xl font-bold text-[#1e3a5f] border-b-2 border-blue-50 pb-2">과목별 세특 정밀 분석 (전 학년)</h3>
+            {GRADE_TABS.map(({ key, label: gradeLabel }) => (
               <div key={key} className="space-y-6">
-                {report.subjectAnalysis[key]?.map((sub: any, idx: number) => (
-                  <div key={idx} className="rounded-2xl border border-gray-100 bg-white p-8 space-y-6">
-                    <h3 className="text-2xl font-extrabold text-blue-900">{sub?.name || sub?.subject}</h3>
-                    <div className="space-y-4">
-                      <p className="text-sm text-gray-700 leading-relaxed"><strong>[기록 요약]</strong> {sub?.summary}</p>
-                      <p className="text-sm text-blue-900 font-bold"><strong>[역량 평가]</strong> {sub?.eval}</p>
-                      <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-                        <p className="text-sm text-gray-900"><strong>[한계 및 보완]</strong> <mark className="bg-yellow-200 px-1 rounded font-bold">{sub?.action}</mark></p>
-                      </div>
+                <h4 className="text-lg font-bold text-gray-700 border-b border-gray-100 pb-2">{gradeLabel}</h4>
+                {/* 성적 표 */}
+                {(report.grade_trends?.[key] || []).length > 0 && (
+                  <table className="w-full border-collapse text-sm mb-4">
+                    <thead>
+                      <tr className="border-b border-gray-100 bg-gray-50">
+                        <th className="px-4 py-3 text-left font-bold text-gray-400">과목</th>
+                        <th className="px-4 py-3 text-center font-bold text-gray-400">1학기</th>
+                        <th className="px-4 py-3 text-center font-bold text-gray-400">2학기</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(report.grade_trends[key] as any[]).map((row: any, i: number) => (
+                        <tr key={i} className="border-b border-gray-100">
+                          <td className="px-4 py-3 font-bold text-gray-800">{row.subject}</td>
+                          <td className="px-4 py-3 text-center tabular-nums text-gray-500">{row.sem1?.replace(/\([^)]*\)/g, "").trim()}</td>
+                          <td className="px-4 py-3 text-center tabular-nums text-gray-500">{row.sem2?.replace(/\([^)]*\)/g, "").trim()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {/* 세특 카드 */}
+                {SUBJECT_TABS.map(({ key: tabKey, label: tabLabel }) => {
+                  const cards: any[] = report.subject_activity?.[key]?.[tabKey] || [];
+                  if (cards.length === 0) return null;
+                  return (
+                    <div key={tabKey} className="space-y-4">
+                      <p className="text-xs font-black uppercase tracking-widest text-gray-400">{tabLabel}</p>
+                      {cards.map((sub: any, idx: number) => (
+                        <div key={idx} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+                          <div className="flex items-center justify-between bg-slate-900 px-6 py-3 text-white">
+                            <span className="text-sm font-bold">{sub.subject}</span>
+                            <Badge className="bg-blue-500 font-bold border-none text-xs">AI 분석 완료</Badge>
+                          </div>
+                          <div className="p-6 space-y-3">
+                            <p className="text-sm text-gray-700 leading-relaxed"><strong>[기록 요약]</strong> {sub.summary}</p>
+                            <p className="text-sm text-blue-900 font-bold"><strong>[역량 평가]</strong> {sub.eval}</p>
+                            <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
+                              <p className="text-sm text-gray-900">
+                                <strong>[한계 및 보완]</strong>{" "}
+                                <mark className="bg-yellow-200 px-1 rounded font-bold">
+                                  {sub.limit || "제시된 한계 및 보완점이 없습니다."}
+                                </mark>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ))}
           </div>
@@ -399,19 +526,18 @@ export default function LabResultPage() {
             <span className="flex size-8 items-center justify-center rounded-lg bg-[#1e3a5f] text-white text-sm">4</span>
             행동특성 및 종합의견 요약
           </h2>
-          
+
           <div className="space-y-4">
             <blockquote className="relative border-l-4 border-slate-200 bg-white p-6 rounded-r-2xl shadow-sm ring-1 ring-gray-100 italic text-gray-600">
               <span className="absolute -left-2 -top-4 text-6xl text-slate-100 font-serif">"</span>
-              <p className="relative z-10 pl-2">1학년: {report?.overall?.g1 || "기록 없음"}</p>
+              <p className="relative z-10 pl-2 text-[14px]">1학년: {report.overall.g1}</p>
             </blockquote>
             <blockquote className="relative border-l-4 border-slate-200 bg-white p-6 rounded-r-2xl shadow-sm ring-1 ring-gray-100 italic text-gray-600">
               <span className="absolute -left-2 -top-4 text-6xl text-slate-100 font-serif">"</span>
-              <p className="relative z-10 pl-2">2학년: {report?.overall?.g2 || "기록 없음"}</p>
+              <p className="relative z-10 pl-2 text-[14px]">2학년: {report.overall.g2}</p>
             </blockquote>
 
-            {/* [💡 AI 입학사정관 심층 분석] 박스 신설 */}
-            {report?.overall?.analysis && (
+            {report.overall.analysis && (
               <div className="mt-8 bg-blue-50 border border-blue-200 p-8 rounded-xl">
                 <h4 className="flex items-center gap-2 text-xl font-bold text-blue-800 mb-4">
                   <Lightbulb className="size-5 fill-yellow-400 text-yellow-500" />
@@ -422,7 +548,7 @@ export default function LabResultPage() {
                 </p>
               </div>
             )}
-            
+
             <div className="mt-10 rounded-3xl bg-gradient-to-br from-[#0f2540] to-[#1e3a5f] p-10 text-white shadow-2xl relative overflow-hidden">
               <Zap className="absolute -bottom-10 -right-10 size-48 text-white/5 rotate-12" />
               <div className="relative z-10">
@@ -430,9 +556,7 @@ export default function LabResultPage() {
                   <Star className="size-5 fill-current" />
                   <span className="text-xs font-black uppercase tracking-[0.3em]">AI Final Verdict</span>
                 </div>
-                <p className="text-xl font-bold leading-relaxed break-keep">
-                  {report?.overall?.final || "기록 없음"}
-                </p>
+                <p className="text-xl font-bold leading-relaxed break-keep">{report.overall.final}</p>
               </div>
             </div>
           </div>

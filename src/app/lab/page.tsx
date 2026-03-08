@@ -9,19 +9,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SectionTitle } from "@/components/SectionTitle";
 import { InfoCard } from "@/components/InfoCard";
-import { 
-  CheckCircle2, 
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import {
+  CheckCircle2,
   Upload, 
   BarChart3, 
   Users, 
   BookOpen, 
   Search, 
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 
 export default function LabPage() {
+  const router = useRouter();
+  const [major, setMajor] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -36,6 +42,46 @@ export default function LabPage() {
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const startAnalysis = async () => {
+    if (!major) return alert("희망 전공을 입력해 주세요.");
+    if (!file) return alert("생기부 파일을 업로드해 주세요.");
+    
+    setIsAnalyzing(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userEmail = user?.email || "";
+
+      const formData = new FormData();
+      formData.append("major", major);
+      formData.append("file", file);
+      formData.append("user_email", userEmail);
+
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (response.status === 429) {
+        alert("요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.");
+        setIsAnalyzing(false);
+        return;
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.id) {
+        router.push(`/lab/result?id=${result.id}`);
+      } else {
+        throw new Error(result.error || "분석 요청에 실패했습니다.");
+      }
+    } catch (err: any) {
+      console.error("Analysis Error:", err);
+      alert(err.message || "오류가 발생했습니다. 다시 시도해 주세요.");
+      setIsAnalyzing(false);
     }
   };
 
@@ -321,6 +367,8 @@ export default function LabPage() {
                   <Label className="text-sm font-bold tracking-widest text-blue-200 uppercase">희망 전공</Label>
                   <Input 
                     placeholder="예: 컴퓨터공학과, 의예과" 
+                    value={major}
+                    onChange={(e) => setMajor(e.target.value)}
                     className="bg-white/10 border-white/20 text-white placeholder:text-white/30 h-14 rounded-xl text-base focus:ring-blue-500/50"
                   />
                 </div>
@@ -329,7 +377,9 @@ export default function LabPage() {
                   <div 
                     onDragOver={handleDrag}
                     onDrop={handleDrop}
-                    className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-white/20 bg-white/5 py-12 transition-all hover:bg-white/10 group cursor-pointer"
+                    className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all py-12 group cursor-pointer ${
+                      dragActive ? "border-blue-500 bg-blue-500/10" : "border-white/20 bg-white/5 hover:bg-white/10"
+                    }`}
                   >
                     <Upload className="size-10 text-blue-300 mb-3 group-hover:scale-110 transition-transform" />
                     <p className="text-base font-bold text-white">
@@ -338,8 +388,19 @@ export default function LabPage() {
                     <p className="mt-2 text-xs text-white/40">PDF, PNG, JPG (최대 20MB)</p>
                   </div>
                 </div>
-                <Button className="w-full h-16 rounded-full bg-white px-8 text-lg font-extrabold text-[#0f2540] shadow-xl transition-all hover:scale-[1.02] hover:bg-blue-50 active:scale-95">
-                  👉 AI 분석 시작하기
+                <Button 
+                  onClick={startAnalysis}
+                  disabled={isAnalyzing}
+                  className="w-full h-16 rounded-full bg-white px-8 text-lg font-extrabold text-[#0f2540] shadow-xl transition-all hover:scale-[1.02] hover:bg-blue-50 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      AI 분석 중... (약 1분 소요)
+                    </>
+                  ) : (
+                    "👉 AI 분석 시작하기"
+                  )}
                 </Button>
               </CardContent>
             </Card>
