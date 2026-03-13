@@ -29,8 +29,11 @@ export async function POST(req: NextRequest) {
     const base64Data = Buffer.from(arrayBuffer).toString('base64');
     const filePart = { inlineData: { data: base64Data, mimeType: 'application/pdf' } };
 
-    // 가성비와 속도가 뛰어난 flash 모델 사용 (더 깊은 추론이 필요하면 pro 사용)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    // thinking 비활성화(thinkingBudget:0)로 60초 타임아웃 내 안정적 응답 보장
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: { thinkingConfig: { thinkingBudget: 0 } } as any,
+    });
     
 // 👇 [핵심 엔진] 세특 큐레이터 전용 3대 핵심 역량 평가 가이드라인 (하드코딩)
     const ourEvaluationCriteria = `

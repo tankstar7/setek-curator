@@ -95,7 +95,13 @@ export default function LabPage() {
         return;
       }
 
-      const result = await response.json();
+      // 응답이 JSON이 아닌 경우(Vercel 타임아웃, 서버 크래시 등) 대비
+      let result;
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error("서버 처리 시간이 초과되었거나 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+      }
 
       if (result.success && result.id) {
         router.push(`/lab/result?id=${result.id}`);
