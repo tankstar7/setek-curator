@@ -77,8 +77,9 @@ export default function LabPage() {
     setIsAnalyzing(true);
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const userEmail = user?.email || "";
+      const { data: { session } } = await supabase.auth.getSession();
+      const userEmail = session?.user?.email || "";
+      const token = session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
       const formData = new FormData();
       formData.append("major", major);
@@ -89,6 +90,7 @@ export default function LabPage() {
       const EDGE_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/analyze`;
       const response = await fetch(EDGE_URL, {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
