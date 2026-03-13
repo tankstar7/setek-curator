@@ -85,7 +85,9 @@ export default function LabPage() {
       formData.append("file", file);
       formData.append("user_email", userEmail);
 
-      const response = await fetch("/api/analyze", {
+      // Supabase Edge Function 호출 (150초 타임아웃 — Vercel 60초 제한 우회)
+      const EDGE_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/analyze`;
+      const response = await fetch(EDGE_URL, {
         method: "POST",
         body: formData,
       });
