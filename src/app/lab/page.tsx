@@ -79,7 +79,6 @@ export default function LabPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const userEmail = session?.user?.email || "";
-      const token = session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
       const formData = new FormData();
       formData.append("major", major);
@@ -87,10 +86,13 @@ export default function LabPage() {
       formData.append("user_email", userEmail);
 
       // Supabase Edge Function 호출 (150초 타임아웃 — Vercel 60초 제한 우회)
+      // --no-verify-jwt 배포 시 Authorization 헤더 불필요, anon key로 식별만 전달
       const EDGE_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/analyze`;
       const response = await fetch(EDGE_URL, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
         body: formData,
       });
 
