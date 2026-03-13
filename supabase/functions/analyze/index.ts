@@ -1,7 +1,17 @@
 // @ts-nocheck — Deno 환경 (Node.js 타입 불필요)
 import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 import { createClient } from "npm:@supabase/supabase-js";
-import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
+
+// 외부 모듈 의존 없이 순수 btoa로 base64 변환 (청크 처리로 스택 오버플로 방지)
+function toBase64(buffer: ArrayBuffer): string {
+  const uint8 = new Uint8Array(buffer);
+  let binary = "";
+  const chunkSize = 8192;
+  for (let i = 0; i < uint8.length; i += chunkSize) {
+    binary += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGINS = [
@@ -41,9 +51,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // PDF → Base64 (Deno 방식)
+    // PDF → Base64
     const arrayBuffer = await file.arrayBuffer();
-    const base64Data = encodeBase64(new Uint8Array(arrayBuffer));
+    const base64Data = toBase64(arrayBuffer);
     const filePart = { inlineData: { data: base64Data, mimeType: "application/pdf" } };
 
     // Gemini 초기화 — 150초 타임아웃 여유로 thinkingBudget 16000 (full quality)
