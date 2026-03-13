@@ -137,7 +137,56 @@
 @layer base {
   /* 본문 폰트 가독성 향상 */
   article p {
-    word-break: keep-all; /* 한글 단어가 중간에 잘리지 않게 함 */
-    text-align: justify;  /* 양끝 정렬로 논문 느낌 부여 */
+    word-break: keep-all;
+    text-align: justify;
+  }
+}
+
+/* ─── AI 로딩 스캔라인 애니메이션 ──────────────────────── */
+@keyframes scanDown {
+  0%   { top: 0%; opacity: 1; }
+  80%  { top: 100%; opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.ai-scan-line {
+  position: absolute;
+  left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, #60a5fa, #3b82f6, #60a5fa, transparent);
+  box-shadow: 0 0 8px 2px rgba(96, 165, 250, 0.6);
+  animation: scanDown 2.2s ease-in-out infinite;
+}
+.ai-gradient-border {
+  background: linear-gradient(135deg, #1e3a5f, #3b82f6, #60a5fa, #1e3a5f);
+  background-size: 300% 300%;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* ─── 인쇄 전용 글로벌 설정 ─────────────────────────────
+   1. @page margin:0 → 브라우저 기본 머리글/바닥글(URL, 날짜) 완전 제거
+   2. color-adjust   → 배경색·그라데이션·차트 색상 보존
+   모든 인쇄 여백은 컴포넌트 내부 padding으로 대체
+─────────────────────────────────────────────────────── */
+@media print {
+  @page {
+    margin: 0 !important;
+    size: A4;
+  }
+  /* html·body 여백 완전 리셋 — 브라우저 기본값 제거 */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  /* 컨트롤 바 등 no-print 요소 숨김 */
+  .no-print {
+    display: none !important;
   }
 }

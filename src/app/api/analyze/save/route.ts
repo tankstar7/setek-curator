@@ -13,16 +13,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: '아이디 정보가 필요합니다.' }, { status: 400 });
     }
 
-    // 해당 분석 결과의 is_saved를 true로 업데이트
-    const { data, error } = await supabase
+    // 현재 is_saved 값 조회
+    const { data: current, error: fetchError } = await supabase
       .from('analysis_results')
-      .update({ is_saved: true })
+      .select('is_saved')
       .eq('id', id)
-      .select();
+      .single();
 
-    if (error) throw error;
+    if (fetchError || !current) {
+      return NextResponse.json({ error: '리포트를 찾을 수 없습니다.' }, { status: 404 });
+    }
 
-    return NextResponse.json({ success: true, data });
+    // 반전(Toggle)
+    const newState = !current.is_saved;
+
+    const { error: updateError } = await supabase
+      .from('analysis_results')
+      .update({ is_saved: newState })
+      .eq('id', id);
+
+    if (updateError) throw updateError;
+
+    return NextResponse.json({ success: true, is_saved: newState });
   } catch (error) {
     console.error('리포트 저장 중 에러:', error);
     return NextResponse.json({ error: '서버 오류로 저장에 실패했습니다.' }, { status: 500 });

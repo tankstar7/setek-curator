@@ -104,6 +104,8 @@ export default function LabResultPage() {
           grade_trends: rawData.grade_trends || {},
           // 교과 세특: { grade1: { basic: [...], explore: [...], others: [...] }, ... }
           subject_activity: rawData.subject_activity || {},
+          // 5대 역량 AI 점수
+          scores: rawData.scores || undefined,
         };
 
         setReport(transformedReport);
@@ -122,7 +124,7 @@ export default function LabResultPage() {
   const downloadPDF = () => { window.print(); };
 
   const handleSave = async () => {
-    if (!id || isSaved) return;
+    if (!id) return;
     try {
       const res = await fetch("/api/analyze/save", {
         method: "POST",
@@ -130,9 +132,13 @@ export default function LabResultPage() {
         body: JSON.stringify({ id }),
       });
       if (!res.ok) throw new Error("저장 실패");
-      setIsSaved(true);
-      setSaveToast(true);
-      setTimeout(() => setSaveToast(false), 3000);
+      const json = await res.json();
+      const newState: boolean = json.is_saved;
+      setIsSaved(newState);
+      if (newState) {
+        setSaveToast(true);
+        setTimeout(() => setSaveToast(false), 3000);
+      }
     } catch (err) {
       console.error("Save error:", err);
       alert("저장 중 오류가 발생했습니다. 다시 시도해 주세요.");
@@ -202,10 +208,9 @@ export default function LabResultPage() {
           <div className="flex items-center gap-2">
             <Button
               onClick={handleSave}
-              disabled={isSaved}
               className={`h-11 rounded-xl px-6 font-bold shadow-lg transition-all active:scale-95 ${
                 isSaved
-                  ? "bg-green-100 text-green-700 shadow-green-100/40 cursor-default"
+                  ? "bg-green-500 text-white shadow-green-500/30 hover:bg-green-600"
                   : "bg-white border border-[#1e3a5f] text-[#1e3a5f] shadow-blue-900/10 hover:bg-[#1e3a5f]/5"
               }`}
             >
@@ -216,11 +221,18 @@ export default function LabResultPage() {
               )}
             </Button>
             <Button
+              onClick={() => router.push(`/lab/result/pdf?id=${id}`)}
+              className="h-11 rounded-xl bg-violet-600 px-6 font-bold text-white shadow-lg shadow-violet-900/20 transition-all hover:bg-violet-700 active:scale-95"
+            >
+              <Download className="mr-2 size-4" />
+              프리미엄 PDF
+            </Button>
+            <Button
               onClick={downloadPDF}
               className="h-11 rounded-xl bg-[#1e3a5f] px-6 font-bold text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#2d5282] active:scale-95"
             >
               <Download className="mr-2 size-4" />
-              리포트 PDF 다운로드
+              간편 PDF
             </Button>
           </div>
         </div>

@@ -22,7 +22,6 @@ export default function AuthCallbackPage() {
       setMsg("프로필 확인 중...");
 
       try {
-        // .maybeSingle() — 신규 유저(0 rows)여도 406 에러 없이 null 반환
         const { data: profile } = await supabase
           .from("profiles")
           .select("id")
@@ -30,25 +29,33 @@ export default function AuthCallbackPage() {
           .maybeSingle();
 
         if (profile) {
-          // 기존 유저: 쿠키 발급 → 탐구소
-          await fetch("/api/mark-onboarded", { method: "POST" });
+          // 기존 유저: 쿠키 발급 — response.ok 검증으로 핑퐁 루프 차단
+          const res = await fetch("/api/mark-onboarded", { method: "POST" });
+          if (!res.ok) throw new Error("mark-onboarded failed");
           router.replace("/explorer");
         } else {
           // 신규 유저: 온보딩
           router.replace("/onboarding");
         }
       } catch {
-        // DB 오류라도 온보딩으로 보내 폼 채우도록 함
         router.replace("/onboarding");
       }
     };
 
-    // ① 이미 세션이 있는 경우 즉시 처리
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) handleUser(user);
-    });
+    // ① PKCE code를 URL에서 직접 추출하여 명시적으로 교환
+    //    SDK 자동처리가 실패하는 환경(Safari ITP, 개인정보보호 브라우저)의 fallback
+    const code = new URLSearchParams(window.location.search).get("code");
+    if (code) {
+      setMsg("인증 코드 교환 중...");
+      supabase.auth.exchangeCodeForSession(code)
+        .then(({ data, error }) => {
+          if (error || !data?.session?.user) return; // 실패 시 ②로 fallback
+          handleUser(data.session.user);
+        })
+        .catch(() => { /* 실패 시 ②로 fallback */ });
+    }
 
-    // ② OAuth PKCE 코드 교환 완료 시 SIGNED_IN 이벤트 수신
+    // ② SDK가 자동으로 코드 교환을 완료하면 이벤트 수신 (①과 중복 처리는 handledRef로 방지)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (
@@ -60,21 +67,26 @@ export default function AuthCallbackPage() {
       }
     );
 
-    // ③ 10초 timeout → 로그인 페이지로 fallback
+    // ③ 이미 세션이 있는 경우 즉시 처리 (재방문 등)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) handleUser(session.user);
+    });
+
+    // ④ 12초 timeout → 로그인 페이지로 fallback
     const timeout = setTimeout(() => {
       if (!handledRef.current) {
         handledRef.current = true;
         setMsg("인증 시간이 초과되었습니다.");
         setTimedOut(true);
       }
-    }, 10_000);
+    }, 12_000);
 
     return () => {
       subscription.unsubscribe();
       clearTimeout(timeout);
-      // handledRef는 cleanup에서 리셋하지 않음 (StrictMode 중복 처리 방지)
     };
-  }, [router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50">

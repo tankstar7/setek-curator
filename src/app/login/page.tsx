@@ -12,25 +12,28 @@ export default function LoginPage() {
   useEffect(() => {
     let done = false;
 
-    // 5초 내 응답 없으면 로그인 폼 표시 (네트워크 불량 대비)
+    // 3초 내 응답 없으면 로그인 폼 표시 (네트워크 불량 대비)
     const timeout = setTimeout(() => {
       if (!done) { done = true; setPhase('ready'); }
-    }, 5000);
+    }, 3000);
 
-    supabase.auth.getUser()
-      .then(async ({ data: { user } }) => {
+    // getSession(): localStorage에서 즉시 읽음 (네트워크 요청 없음 → 빠르고 안정적)
+    // getUser()는 매번 서버 검증 요청을 날려 느리고 네트워크 환경에 민감함
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
         if (done) return;
         clearTimeout(timeout);
         done = true;
 
-        if (!user) {
+        if (!session?.user) {
           // 세션 없음 → 로그인 폼 표시
           setPhase('ready');
           return;
         }
 
+        const user = session.user;
+
         // ── 이미 로그인됨: 프로필 확인 후 적절한 페이지로 ──────────────────
-        // .maybeSingle() — 신규 유저(0 rows)여도 406 에러 없이 null 반환
         const { data: profile } = await supabase
           .from('profiles')
           .select('id')
@@ -38,8 +41,13 @@ export default function LoginPage() {
           .maybeSingle();
 
         if (profile) {
-          // 프로필 있음 → 쿠키 복구 후 탐구소로
-          await fetch('/api/mark-onboarded', { method: 'POST' });
+          // 쿠키 발급 — response.ok 검증으로 실패 시 핑퐁 리다이렉트 차단
+          const res = await fetch('/api/mark-onboarded', { method: 'POST' });
+          if (!res.ok) {
+            // 쿠키 세팅 실패: 무한 루프 방지를 위해 에러 상태로 전환
+            setPhase('error');
+            return;
+          }
           router.replace('/explorer');
         } else {
           // 프로필 없음 → 온보딩으로
@@ -49,14 +57,16 @@ export default function LoginPage() {
       .catch(() => {
         clearTimeout(timeout);
         done = true;
-        setPhase('error');
+        setPhase('ready'); // 에러 시 폼 표시 (로그인 시도는 가능해야 함)
       });
 
     return () => {
       clearTimeout(timeout);
       done = true;
     };
-  }, [router]);
+  // router는 Next.js에서 안정적 참조이나 exhaustive-deps 경고 억제
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleGoogleLogin = async () => {
     await supabase.auth.signInWithOAuth({

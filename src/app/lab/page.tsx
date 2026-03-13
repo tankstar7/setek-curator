@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,13 +13,12 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
   CheckCircle2,
-  Upload, 
-  BarChart3, 
-  Users, 
-  BookOpen, 
-  Search, 
+  Upload,
+  BarChart3,
+  Users,
+  BookOpen,
+  Search,
   ChevronRight,
-  Loader2,
 } from "lucide-react";
 
 export default function LabPage() {
@@ -28,6 +27,31 @@ export default function LabPage() {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [fadeIn, setFadeIn] = useState(true);
+
+  const LOADING_MESSAGES = [
+    "생기부 텍스트 데이터 추출 및 정제 중...",
+    "학생의 3대 핵심 역량(학업/진로/공동체) 매핑 중...",
+    "교과 세특 행간의 숨은 의미와 리더십 분석 중...",
+    "개인 맞춤형 한계 극복 액션 플랜(Action Plan) 설계 중...",
+    "최종 AI 생기부 분석 리포트 생성 중... 거의 다 왔습니다!",
+  ];
+
+  useEffect(() => {
+    if (!isAnalyzing) return;
+    setLoadingStep(0);
+    setFadeIn(true);
+    const interval = setInterval(() => {
+      setFadeIn(false);
+      setTimeout(() => {
+        setLoadingStep((prev) => (prev + 1) % LOADING_MESSAGES.length);
+        setFadeIn(true);
+      }, 450);
+    }, 2800);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAnalyzing]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -361,49 +385,97 @@ export default function LabPage() {
               당신의 <strong className="text-white">합격 가능성</strong>을 수치로 확인하세요.
             </p>
 
-            <Card className="mt-12 bg-white/5 border-white/10 text-left backdrop-blur-md shadow-2xl">
-              <CardContent className="p-8 space-y-8">
-                <div className="space-y-3">
-                  <Label className="text-sm font-bold tracking-widest text-blue-200 uppercase">희망 전공</Label>
-                  <Input 
-                    placeholder="예: 컴퓨터공학과, 의예과" 
-                    value={major}
-                    onChange={(e) => setMajor(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/30 h-14 rounded-xl text-base focus:ring-blue-500/50"
-                  />
-                </div>
-                <div className="space-y-3">
-                  <Label className="text-sm font-bold tracking-widest text-blue-200 uppercase">생기부 파일 업로드</Label>
-                  <div 
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                    className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all py-12 group cursor-pointer ${
-                      dragActive ? "border-blue-500 bg-blue-500/10" : "border-white/20 bg-white/5 hover:bg-white/10"
-                    }`}
-                  >
-                    <Upload className="size-10 text-blue-300 mb-3 group-hover:scale-110 transition-transform" />
-                    <p className="text-base font-bold text-white">
-                      {file ? file.name : "파일을 여기에 끌어다 놓으세요"}
-                    </p>
-                    <p className="mt-2 text-xs text-white/40">PDF, PNG, JPG (최대 20MB)</p>
+            {isAnalyzing ? (
+              /* ── 다이나믹 로딩 UI ── */
+              <div className="mt-12 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl p-10 flex flex-col items-center gap-8">
+
+                {/* 스캔 애니메이션 + 중앙 아이콘 */}
+                <div className="relative flex items-center justify-center">
+                  {/* 그라데이션 테두리 링 */}
+                  <div className="ai-gradient-border absolute rounded-full" style={{ width: 120, height: 120, padding: 3 }}>
+                    <div className="w-full h-full rounded-full bg-[#0f2540]" />
+                  </div>
+                  {/* 외부 ping 링 */}
+                  <div className="absolute rounded-full bg-blue-500/15 animate-ping" style={{ width: 140, height: 140 }} />
+                  {/* 스캔 레이저 라인 (overflow hidden으로 원 안에 가둠) */}
+                  <div className="absolute rounded-full overflow-hidden" style={{ width: 114, height: 114 }}>
+                    <div className="ai-scan-line" />
+                  </div>
+                  {/* 중앙 이모지 */}
+                  <div className="relative z-10 flex items-center justify-center rounded-full" style={{ width: 114, height: 114 }}>
+                    <span className="text-4xl select-none animate-pulse">🤖</span>
                   </div>
                 </div>
-                <Button 
-                  onClick={startAnalysis}
-                  disabled={isAnalyzing}
-                  className="w-full h-16 rounded-full bg-white px-8 text-lg font-extrabold text-[#0f2540] shadow-xl transition-all hover:scale-[1.02] hover:bg-blue-50 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      AI 분석 중... (약 1분 소요)
-                    </>
-                  ) : (
-                    "👉 AI 분석 시작하기"
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+
+                {/* 롤링 텍스트 */}
+                <div className="text-center min-h-[3rem] flex flex-col items-center justify-center gap-2">
+                  <p
+                    className="text-base font-semibold text-white leading-snug tracking-tight transition-opacity duration-450"
+                    style={{ opacity: fadeIn ? 1 : 0 }}
+                  >
+                    {LOADING_MESSAGES[loadingStep]}
+                  </p>
+                  <p className="text-xs text-blue-300/60 font-medium">AI가 생기부를 정밀 분석하고 있습니다 · 약 1분 소요</p>
+                </div>
+
+                {/* 진행 단계 도트 */}
+                <div className="flex items-center gap-2">
+                  {LOADING_MESSAGES.map((_, i) => (
+                    <div
+                      key={i}
+                      className="rounded-full transition-all duration-500"
+                      style={{
+                        width: i === loadingStep ? 20 : 8,
+                        height: 8,
+                        background: i <= loadingStep ? "#3b82f6" : "rgba(255,255,255,0.15)",
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* 하단 안내 */}
+                <p className="text-xs text-white/30 text-center">
+                  창을 닫지 마세요. 분석 완료 후 자동으로 결과 페이지로 이동합니다.
+                </p>
+              </div>
+            ) : (
+              /* ── 기본 입력 폼 ── */
+              <Card className="mt-12 bg-white/5 border-white/10 text-left backdrop-blur-md shadow-2xl">
+                <CardContent className="p-8 space-y-8">
+                  <div className="space-y-3">
+                    <Label className="text-sm font-bold tracking-widest text-blue-200 uppercase">희망 전공</Label>
+                    <Input
+                      placeholder="예: 컴퓨터공학과, 의예과"
+                      value={major}
+                      onChange={(e) => setMajor(e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/30 h-14 rounded-xl text-base focus:ring-blue-500/50"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-bold tracking-widest text-blue-200 uppercase">생기부 파일 업로드</Label>
+                    <div
+                      onDragOver={handleDrag}
+                      onDrop={handleDrop}
+                      className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all py-12 group cursor-pointer ${
+                        dragActive ? "border-blue-500 bg-blue-500/10" : "border-white/20 bg-white/5 hover:bg-white/10"
+                      }`}
+                    >
+                      <Upload className="size-10 text-blue-300 mb-3 group-hover:scale-110 transition-transform" />
+                      <p className="text-base font-bold text-white">
+                        {file ? file.name : "파일을 여기에 끌어다 놓으세요"}
+                      </p>
+                      <p className="mt-2 text-xs text-white/40">PDF, PNG, JPG (최대 20MB)</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={startAnalysis}
+                    className="w-full h-16 rounded-full bg-white px-8 text-lg font-extrabold text-[#0f2540] shadow-xl transition-all hover:scale-[1.02] hover:bg-blue-50 active:scale-95"
+                  >
+                    👉 AI 분석 시작하기
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </section>
       </div>
