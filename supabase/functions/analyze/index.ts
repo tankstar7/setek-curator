@@ -56,11 +56,11 @@ Deno.serve(async (req) => {
     const base64Data = toBase64(arrayBuffer);
     const filePart = { inlineData: { data: base64Data, mimeType: "application/pdf" } };
 
-    // Gemini 초기화 — 150초 타임아웃 여유로 thinkingBudget 16000 (full quality)
+    // Gemini 초기화 — thinkingBudget 24576 (최대값, 최고 품질)
     const genAI = new GoogleGenerativeAI(Deno.env.get("GEMINI_API_KEY")!);
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
-      generationConfig: { thinkingConfig: { thinkingBudget: 16000 } } as any,
+      generationConfig: { thinkingConfig: { thinkingBudget: 24576 } } as any,
     });
 
     // ── [핵심 엔진] 세특 큐레이터 전용 3대 핵심 역량 평가 가이드라인 ─────────
