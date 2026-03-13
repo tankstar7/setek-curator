@@ -29,6 +29,7 @@ export default function LabPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [fadeIn, setFadeIn] = useState(true);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const LOADING_MESSAGES = [
     "생기부 텍스트 데이터 추출 및 정제 중...",
@@ -459,9 +460,19 @@ export default function LabPage() {
                   </div>
                   <div className="space-y-3">
                     <Label className="text-sm font-bold tracking-widest text-blue-200 uppercase">생기부 파일 업로드</Label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) setFile(e.target.files[0]);
+                      }}
+                    />
                     <div
                       onDragOver={handleDrag}
                       onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
                       className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all py-12 group cursor-pointer ${
                         dragActive ? "border-blue-500 bg-blue-500/10" : "border-white/20 bg-white/5 hover:bg-white/10"
                       }`}
@@ -470,7 +481,7 @@ export default function LabPage() {
                       <p className="text-base font-bold text-white">
                         {file ? file.name : "파일을 여기에 끌어다 놓으세요"}
                       </p>
-                      <p className="mt-2 text-xs text-white/40">PDF, PNG, JPG (최대 20MB)</p>
+                      <p className="mt-2 text-xs text-white/40">클릭하거나 파일을 끌어다 놓으세요 · PDF, PNG, JPG (최대 20MB)</p>
                     </div>
                   </div>
                   <Button
