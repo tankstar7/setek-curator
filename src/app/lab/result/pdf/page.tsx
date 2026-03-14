@@ -78,6 +78,7 @@ export default function PdfPreviewPage() {
           },
           grade_trends:     rawData.grade_trends     || {},
           subject_activity: rawData.subject_activity || {},
+          scores:           rawData.scores           || undefined,
         });
         setMajor(data.major || "");
         setCreatedAt(data.created_at);
