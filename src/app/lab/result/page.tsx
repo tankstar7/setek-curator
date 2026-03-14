@@ -106,6 +106,8 @@ export default function LabResultPage() {
           subject_activity: rawData.subject_activity || {},
           // 5대 역량 AI 점수
           scores: rawData.scores || undefined,
+          // 학업성취도 정밀 분석
+          grade_analysis: rawData.grade_analysis || undefined,
         };
 
         setReport(transformedReport);
@@ -406,6 +408,39 @@ export default function LabResultPage() {
               </tbody>
             </table>
           </div>
+
+          {/* ── 학업성취도 정밀 분석 ── */}
+          {report.grade_analysis && (
+            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center gap-2">
+                <span className="text-base">📊</span>
+                <h3 className="text-sm font-bold text-gray-700">학업성취도 정밀 분석</h3>
+              </div>
+              <div className="p-6 space-y-3">
+                {report.grade_analysis.warning && (
+                  <div className="flex items-start gap-3 rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-3">
+                    <span className="mt-0.5 shrink-0 text-yellow-500">⚠️</span>
+                    <p className="text-sm font-medium text-yellow-800">{report.grade_analysis.warning}</p>
+                  </div>
+                )}
+                {[
+                  { label: "균형성 분석",   value: report.grade_analysis.balance },
+                  { label: "전공 연계 과목", value: report.grade_analysis.major_related },
+                  { label: "학년별 추이",   value: report.grade_analysis.trend },
+                  { label: "이탈 과목",     value: report.grade_analysis.outlier },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-start gap-4 rounded-xl border border-gray-100 bg-gray-50 px-5 py-4">
+                    <span className="mt-0.5 shrink-0 w-24 text-xs font-black text-gray-400 uppercase tracking-widest">{label}</span>
+                    <p className="text-[14px] text-gray-700 leading-relaxed break-keep">{value}</p>
+                  </div>
+                ))}
+                <div className="flex items-start gap-4 rounded-xl bg-blue-50 border border-blue-100 px-5 py-4">
+                  <span className="mt-0.5 shrink-0 w-24 text-xs font-black text-[#1e3a5f] uppercase tracking-widest">종합 평가</span>
+                  <p className="text-[14px] font-bold text-[#1e3a5f] leading-relaxed break-keep italic">{report.grade_analysis.overall}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── 과목별 세특 분석 ── */}
           <div className="space-y-4 no-print">
