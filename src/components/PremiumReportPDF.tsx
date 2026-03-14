@@ -27,11 +27,16 @@ interface CreativeItem {
   grade: string; isActionPlan?: boolean; desc?: string;
   academic?: string; career?: string; community?: string;
 }
+interface GradeAnalysis {
+  balance: string; major_related: string; trend: string;
+  outlier: string; overall: string; warning: string;
+}
 interface ReportData {
   attendance: string; volunteer: string; creative: CreativeItem[];
   overall: { g1: string; g2: string; final: string; analysis: string };
   scores?: { 학업역량?: number; 진로역량?: number; 공동체역량?: number; "성장 주도성"?: number; "탐구 깊이"?: number };
   grade_trends: Record<string, Array<{ subject: string; sem1: string; sem2: string }>>;
+  grade_analysis?: GradeAnalysis;
   subject_activity: Record<string, Record<string, SubjectCard[]>>;
 }
 export interface PremiumReportPDFProps {
@@ -353,6 +358,39 @@ export default function PremiumReportPDF({ report, major, createdAt }: PremiumRe
                       </div>
                     );
                   })}
+
+                  {/* 학업성취도 정밀 분석 */}
+                  {report.grade_analysis && (() => {
+                    const ga = report.grade_analysis;
+                    const rows: { label: string; value: string; bold?: boolean }[] = [
+                      { label: "균형성 분석",   value: ga.balance },
+                      { label: "전공 연계 과목", value: ga.major_related },
+                      { label: "학년별 추이",   value: ga.trend },
+                      { label: "이탈 과목",     value: ga.outlier },
+                      { label: "종합 평가",     value: ga.overall, bold: true },
+                    ];
+                    return (
+                      <div className="print:break-inside-avoid" style={{ marginBottom: 16 }}>
+                        <SectionHeading icon="📊" title="학업성취도 정밀 분석" />
+                        {ga.warning && (
+                          <div style={{ background: "#fefce8", border: "1px solid #fde047", borderRadius: 6, padding: "6px 10px", marginBottom: 8, display: "flex", gap: 6, alignItems: "flex-start" }}>
+                            <span style={{ fontSize: 9, color: "#a16207", flexShrink: 0 }}>⚠️</span>
+                            <p style={{ margin: 0, fontSize: 8, color: "#92400e", lineHeight: 1.5 }}>{ga.warning}</p>
+                          </div>
+                        )}
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 8.5 }}>
+                          <tbody>
+                            {rows.map(({ label, value, bold }) => (
+                              <tr key={label} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                <td style={{ padding: "5px 10px", width: "22%", fontWeight: 700, color: NAVY, background: "#f8fafc", whiteSpace: "nowrap" }}>{label}</td>
+                                <td style={{ padding: "5px 10px", color: "#374151", lineHeight: 1.65, fontWeight: bold ? 700 : 400 }}>{value}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
 
                   {/* 행동 특성 */}
                   <SectionHeading icon="📝" title="행동 특성 및 종합 의견" />

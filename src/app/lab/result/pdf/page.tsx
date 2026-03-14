@@ -77,6 +77,7 @@ export default function PdfPreviewPage() {
             analysis: rawData.behavior_summary?.analysis      || "",
           },
           grade_trends:     rawData.grade_trends     || {},
+          grade_analysis:   rawData.grade_analysis   || undefined,
           subject_activity: rawData.subject_activity || {},
           scores:           rawData.scores           || undefined,
         });
