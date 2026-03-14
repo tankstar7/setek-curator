@@ -259,8 +259,10 @@ export default function PremiumReportPDF({ report, major, createdAt }: PremiumRe
                   dataKey="axis"
                   tick={{ fontSize: 8, fill: "#374151", fontWeight: 600 }}
                 />
-                <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
-                <Radar dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} strokeWidth={2} />
+                <PolarRadiusAxis angle={90} domain={[50, 100]} tick={false} axisLine={false} />
+                <Radar dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} strokeWidth={2}
+                  label={{ fontSize: 8, fontWeight: 700, fill: "#1e3a5f" }}
+                />
               </RadarChart>
             </div>
 
