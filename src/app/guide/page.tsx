@@ -199,6 +199,16 @@ const FUSION_SUBJECTS = [
 // ── 2022 개정 과목 매트릭스 데이터 ────────────────────────────────────────────
 const SUBJECT_MATRIX = [
   {
+    type: "공통과목",
+    chipClass: "bg-slate-50 border-slate-300 text-slate-600",
+    rowBg: "bg-slate-50/40",
+    labelClass: "bg-slate-200 text-slate-700",
+    subjects: {
+      math: ["공통수학1", "공통수학2"],
+      science: ["통합과학1", "통합과학2", "과학탐구실험1", "과학탐구실험2"],
+    },
+  },
+  {
     type: "일반선택",
     chipClass: "bg-blue-50 border-blue-200 text-blue-700",
     rowBg: "bg-blue-50/30",
