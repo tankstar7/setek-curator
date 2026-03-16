@@ -510,9 +510,16 @@ export default function ExplorerPage() {
 
   // ── 단계별 항목 도출 ────────────────────────────────────────────────────────
 
-  // ① 교과군 목록 ('정보' 카테고리 제외)
+  // ① 교과군 목록 — COURSE_GROUPS 키를 정적 기반으로 항상 포함 + Firebase 데이터 병합
+  // (Firebase가 비어 있거나 "과학"/"수학" 문서가 없어도 항상 접근 가능)
   const subjects = useMemo(
-    () => unique(curricula.map((c) => c.subject)).filter((s) => s !== "정보").sort(),
+    () =>
+      unique([
+        ...Object.keys(COURSE_GROUPS),          // 항상 표시: "과학", "수학"
+        ...curricula.map((c) => c.subject),     // Firebase 데이터 병합
+      ])
+        .filter((s) => s !== "정보")
+        .sort(),
     [curricula]
   );
 
