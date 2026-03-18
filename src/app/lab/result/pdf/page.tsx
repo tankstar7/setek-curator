@@ -59,22 +59,30 @@ export default function PdfPreviewPage() {
         if (fetchError || !data) throw new Error("데이터 없음");
 
         const rawData = data.result_data || {};
+        const ca = rawData.creative_activity || {};
+        const bs = rawData.behavior_summary || {};
+        const grade3CreativeHasContent = ca.grade3 && (
+          ca.grade3.academic !== "해당 학년 기록 없음" ||
+          ca.grade3.career   !== "해당 학년 기록 없음" ||
+          ca.grade3.community !== "해당 학년 기록 없음"
+        );
+        const actionPlanText = ca.next_action_plan || ca.grade3_action_plan || null;
+
         setReport({
           attendance: rawData.basic_info?.attendance || "기록 없음",
           volunteer:  rawData.basic_info?.volunteer  || "기록 없음",
           creative: [
-            ...(rawData.creative_activity?.grade1
-              ? [{ ...rawData.creative_activity.grade1, grade: "1학년" }] : []),
-            ...(rawData.creative_activity?.grade2
-              ? [{ ...rawData.creative_activity.grade2, grade: "2학년" }] : []),
-            ...(rawData.creative_activity?.grade3_action_plan
-              ? [{ grade: "3학년(예정)", isActionPlan: true, desc: rawData.creative_activity.grade3_action_plan }] : []),
+            ...(ca.grade1 ? [{ ...ca.grade1, grade: "1학년" }] : []),
+            ...(ca.grade2 ? [{ ...ca.grade2, grade: "2학년" }] : []),
+            ...(grade3CreativeHasContent ? [{ ...ca.grade3, grade: "3학년" }] : []),
+            ...(actionPlanText ? [{ grade: "3학년(예정)", isActionPlan: true, desc: actionPlanText }] : []),
           ],
           overall: {
-            g1:       rawData.behavior_summary?.grade1        || "기록 없음",
-            g2:       rawData.behavior_summary?.grade2        || "기록 없음",
-            final:    rawData.behavior_summary?.final_comment || "기록 없음",
-            analysis: rawData.behavior_summary?.analysis      || "",
+            g1:       bs.grade1        || "기록 없음",
+            g2:       bs.grade2        || "기록 없음",
+            g3:       (bs.grade3 && bs.grade3 !== "해당 학년 기록 없음") ? bs.grade3 : null,
+            final:    bs.final_comment || "기록 없음",
+            analysis: bs.analysis      || "",
           },
           grade_trends:     rawData.grade_trends     || {},
           grade_analysis:   rawData.grade_analysis   || undefined,

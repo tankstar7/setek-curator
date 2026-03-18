@@ -77,28 +77,35 @@ export default function LabResultPage() {
 
         const rawData = result.result_data || {};
 
+        const ca = rawData.creative_activity || {};
+        const bs = rawData.behavior_summary || {};
+        // grade3 창체: 3개 필드 모두 "해당 학년 기록 없음"이면 숨김
+        const grade3CreativeHasContent = ca.grade3 && (
+          ca.grade3.academic !== "해당 학년 기록 없음" ||
+          ca.grade3.career   !== "해당 학년 기록 없음" ||
+          ca.grade3.community !== "해당 학년 기록 없음"
+        );
+        // next_action_plan 우선, 없으면 grade3_action_plan fallback
+        const actionPlanText = ca.next_action_plan || ca.grade3_action_plan || null;
+
         const transformedReport = {
           // 기본 정보
           attendance: rawData.basic_info?.attendance || "기록 없음",
           volunteer: rawData.basic_info?.volunteer || "기록 없음",
           // 창의적 체험활동 (학년별 객체 → 배열로 변환)
           creative: [
-            ...(rawData.creative_activity?.grade1
-              ? [{ ...rawData.creative_activity.grade1, grade: "1학년" }]
-              : []),
-            ...(rawData.creative_activity?.grade2
-              ? [{ ...rawData.creative_activity.grade2, grade: "2학년" }]
-              : []),
-            ...(rawData.creative_activity?.grade3_action_plan
-              ? [{ grade: "3학년(예정)", isActionPlan: true, desc: rawData.creative_activity.grade3_action_plan }]
-              : []),
+            ...(ca.grade1 ? [{ ...ca.grade1, grade: "1학년" }] : []),
+            ...(ca.grade2 ? [{ ...ca.grade2, grade: "2학년" }] : []),
+            ...(grade3CreativeHasContent ? [{ ...ca.grade3, grade: "3학년" }] : []),
+            ...(actionPlanText ? [{ grade: "3학년(예정)", isActionPlan: true, desc: actionPlanText }] : []),
           ],
           // 종합 의견
           overall: {
-            g1: rawData.behavior_summary?.grade1 || "기록 없음",
-            g2: rawData.behavior_summary?.grade2 || "기록 없음",
-            final: rawData.behavior_summary?.final_comment || "기록 없음",
-            analysis: rawData.behavior_summary?.analysis || "",
+            g1: bs.grade1 || "기록 없음",
+            g2: bs.grade2 || "기록 없음",
+            g3: (bs.grade3 && bs.grade3 !== "해당 학년 기록 없음") ? bs.grade3 : null,
+            final: bs.final_comment || "기록 없음",
+            analysis: bs.analysis || "",
           },
           // 성적 추이: { grade1: [{subject, sem1, sem2}], grade2: [...], grade3: [...] }
           grade_trends: rawData.grade_trends || {},
@@ -586,6 +593,12 @@ export default function LabResultPage() {
               <span className="absolute -left-2 -top-4 text-6xl text-slate-100 font-serif">"</span>
               <p className="relative z-10 pl-2 text-[14px]">2학년: {report.overall.g2}</p>
             </blockquote>
+            {report.overall.g3 && (
+              <blockquote className="relative border-l-4 border-slate-200 bg-white p-6 rounded-r-2xl shadow-sm ring-1 ring-gray-100 italic text-gray-600">
+                <span className="absolute -left-2 -top-4 text-6xl text-slate-100 font-serif">"</span>
+                <p className="relative z-10 pl-2 text-[14px]">3학년: {report.overall.g3}</p>
+              </blockquote>
+            )}
 
             {report.overall.analysis && (
               <div className="mt-8 bg-blue-50 border border-blue-200 p-8 rounded-xl">

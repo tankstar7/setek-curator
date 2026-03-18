@@ -33,7 +33,7 @@ interface GradeAnalysis {
 }
 interface ReportData {
   attendance: string; volunteer: string; creative: CreativeItem[];
-  overall: { g1: string; g2: string; final: string; analysis: string };
+  overall: { g1: string; g2: string; g3?: string | null; final: string; analysis: string };
   scores?: { 학업역량?: number; 진로역량?: number; 공동체역량?: number; "성장 주도성"?: number; "탐구 깊이"?: number };
   grade_trends: Record<string, Array<{ subject: string; sem1: string; sem2: string }>>;
   grade_analysis?: GradeAnalysis;
@@ -405,6 +405,12 @@ export default function PremiumReportPDF({ report, major, createdAt }: PremiumRe
                       </div>
                     ))}
                   </div>
+                  {report.overall.g3 && (
+                    <div className="print:break-inside-avoid" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 11px", marginBottom: 12 }}>
+                      <p style={{ margin: "0 0 3px", fontSize: 9.5, fontWeight: 700, color: NAVY }}>3학년 종합</p>
+                      <p style={{ margin: 0, fontSize: 8.5, lineHeight: 1.75, color: "#374151", orphans: 3, widows: 3 }}>{report.overall.g3}</p>
+                    </div>
+                  )}
 
                   {report.overall.analysis && (
                     /* ④ 심층 분석 박스 */
