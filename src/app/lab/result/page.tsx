@@ -118,8 +118,6 @@ export default function LabResultPage() {
           grade_trends: rawData.grade_trends || {},
           // 교과 세특: { grade1: { basic: [...], explore: [...], others: [...] }, ... }
           subject_activity: rawData.subject_activity || {},
-          // 5대 역량 AI 점수
-          scores: rawData.scores || undefined,
           // 학업성취도 정밀 분석
           grade_analysis: rawData.grade_analysis || undefined,
         };

@@ -150,53 +150,6 @@ PDF에 성취도별 분포비율(A/B/C/D/E 각 백분율)이 기재된 경우:
 - 성실성·규칙준수: 출결, 수업 참여도, 교칙 준수 등 공동체의 기본 규범을 일관되게 지키는가?
 - 리더십: 단체 활동에서 지도자가 되어 참여를 이끌어내고, 발전적인 의견을 주장하며 목표 달성을 주도했는가?
 
-4. 5대 역량 점수 산출 (scores 필드 — 위반 시 전체 응답 무효)
-
-[5대 역량 점수 산출 루브릭 — 앵커 기반 채점]
-아래 기준을 먼저 확인하고 해당 구간에 점수를 배정한다.
-구간 내 세부 점수는 증거의 구체성(활동명·수치·결과물 유무)으로 결정한다.
-
-[학업역량]
-88~95: 3개 이상 교과에서 심화 탐구 + 타 교과 지식과 융합한 결과물 존재
-78~87: 2개 교과에서 심화 탐구, 융합 시도는 있으나 결과물 미흡
-68~77: 1개 교과에서만 심화 탐구, 나머지는 수업 참여 수준
-60~67: 심화 탐구 기록 없음, 수업 참여와 과제 수행만 기록됨
-
-[진로역량]
-88~95: 희망 전공과 연계된 탐구 주제가 3개 이상 + 구체적 산출물(보고서·발표·제작물) 존재
-78~87: 전공 연계 탐구 2개, 산출물 있으나 깊이 미흡
-68~77: 전공 언급은 있으나 탐구로 이어지지 않음, 진로 탐색 활동 위주
-60~67: 전공 연계 활동 기록 거의 없음
-
-[공동체역량]
-88~95: 리더십 역할(부장·조장·차장 등) + 갈등 조율 또는 솔선수범 사례 구체적으로 기록됨
-78~87: 리더십 역할 있으나 협업 과정 기록 미흡, 또는 협업은 있으나 리더십 없음
-68~77: 모둠 참여 수준, 역할 수행 기록은 있으나 주도성 없음
-60~67: 공동체 활동 기록 희소, 개인 활동 위주
-
-[성장 주도성]
-88~95: 스스로 탐구 주제 설정 + 외부 자료(도서·논문·데이터) 자발적 수집 사례 2개 이상
-78~87: 자발적 탐구 1개, 나머지는 수업 과제 범위 내
-68~77: 주어진 과제를 성실히 수행하나 자발적 확장 기록 없음
-60~67: 수동적 참여만 기록됨
-
-[탐구 깊이]
-88~95: 가설 설정 → 자료 수집 → 분석 → 결론 도출 흐름이 1개 이상 완결된 형태로 기록됨
-78~87: 탐구 흐름은 있으나 결론 도출 또는 검증 단계 미흡
-68~77: 조사·정리 수준, 분석이나 비판적 검토 없음
-60~67: 탐구 기록 없음, 활동 나열만 존재
-
-[채점 STEP 1] 위 루브릭으로 각 역량 구간 결정
-[채점 STEP 2] 구간 내 세부 점수를 증거 구체성으로 확정
-[채점 STEP 3] 4대 규칙 자기검증 — 반드시 순서대로 통과 확인
-             규칙①(상한선): 90점 이상이 2개 이상 → 2번째부터 89점으로 강제 하향
-             규칙②(하한선): 75점 이하가 1개 이하 → 최저 역량 2개를 75점 이하로 강제 하향
-             규칙③(편차): 최고점-최저점 < 20 → 최저점을 (최고점-20) 이하로 강제 하향
-             규칙④(범위): 60 미만 또는 95 초과 → 범위 내(60~95)로 강제 조정
-[채점 STEP 4] 검증 통과 후 scores 필드에 기입. 검증 전 초안 출력 절대 금지.
-
-(채점 예시) 진로 연계 탐구가 구체적이면 진로역량 88점, 협업 기록이 부족하면 공동체역량 65점, 실험 데이터 검증이 없으면 탐구 깊이 70점.
-
 [평가 작성 시 3대 절대 금지 및 필수 규칙]
 1. 추상적 표현 및 금지 표현 블랙리스트 엄수
 아래 단어가 포함된 문장은 즉시 재작성할 것. 반드시 구체적 팩트(탐구 주제, 역할, 성과, 읽은 책)로 대체한다.
@@ -450,13 +403,6 @@ interface ResponseData {
     analysis: string;
     final_comment: string;
   };
-  scores: {
-    "학업역량": number;    // 채점 STEP 검증 통과 후 확정된 정수 (60~95)
-    "진로역량": number;    // 채점 STEP 검증 통과 후 확정된 정수 (60~95)
-    "공동체역량": number;  // 채점 STEP 검증 통과 후 확정된 정수 (60~95)
-    "성장 주도성": number; // 채점 STEP 검증 통과 후 확정된 정수 (60~95)
-    "탐구 깊이": number;   // 채점 STEP 검증 통과 후 확정된 정수 (60~95)
-  };
 }
 `;
 
@@ -474,41 +420,6 @@ interface ResponseData {
       console.error('JSON 파싱 에러:', parseError);
       throw new Error(`Gemini 응답 파싱 실패: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
     }
-
-    // ── 점수 규칙 서버사이드 보정 (Gemini가 규칙을 어겼을 경우 최후 방어선) ──
-    const scores = analysisData.scores as Record<string, number>;
-    const keys = Object.keys(scores);
-
-    // 규칙④ 범위 보정 (가장 먼저)
-    keys.forEach(k => {
-      scores[k] = Math.min(95, Math.max(60, Math.round(scores[k])));
-    });
-
-    // 규칙① 상한선: 90점 이상 최대 1개
-    const highKeys = keys.filter(k => scores[k] >= 90).sort((a, b) => scores[b] - scores[a]);
-    highKeys.slice(1).forEach(k => { scores[k] = 89; });
-
-    // 규칙② 하한선: 75점 이하 최소 2개
-    const lowKeys = keys.filter(k => scores[k] <= 75);
-    if (lowKeys.length < 2) {
-      const sorted = [...keys].sort((a, b) => scores[a] - scores[b]);
-      const needed = 2 - lowKeys.length;
-      sorted.slice(0, needed).forEach(k => {
-        if (scores[k] > 75) scores[k] = 75;
-      });
-    }
-
-    // 규칙③ 편차: 최고-최저 >= 20
-    const vals = keys.map(k => scores[k]);
-    const maxVal = Math.max(...vals);
-    const minVal = Math.min(...vals);
-    if (maxVal - minVal < 20) {
-      const minKey = keys.find(k => scores[k] === minVal)!;
-      scores[minKey] = Math.max(60, maxVal - 20);
-    }
-
-    analysisData.scores = scores;
-    // ─────────────────────────────────────────────────────────────
 
     console.log('4. Supabase DB 저장 시작');
     const { data: insertData, error: dbError } = await supabase

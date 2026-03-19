@@ -12,7 +12,6 @@
 
 import React from "react";
 import {
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, Legend,
 } from "recharts";
 
@@ -34,7 +33,6 @@ interface GradeAnalysis {
 interface ReportData {
   attendance: string; volunteer: string; creative: CreativeItem[];
   overall: { g1: string; g2: string; g3?: string | null; final: string; analysis: string };
-  scores?: { 학업역량?: number; 진로역량?: number; 공동체역량?: number; "성장 주도성"?: number; "탐구 깊이"?: number };
   grade_trends: Record<string, Array<{ subject: string; sem1: string; sem2: string }>>;
   grade_analysis?: GradeAnalysis;
   subject_activity: Record<string, Record<string, SubjectCard[]>>;
@@ -179,16 +177,6 @@ function SubjectCardBlock({ card }: { card: SubjectCard }) {
 // ─────────────────────────────────────────────────────────
 export default function PremiumReportPDF({ report, major, createdAt }: PremiumReportPDFProps) {
 
-  // 역량 레이더 데이터
-  const s = report.scores;
-  const radarData = [
-    { axis: "학업역량",    score: s?.학업역량   ?? 0 },
-    { axis: "진로역량",    score: s?.진로역량   ?? 0 },
-    { axis: "공동체역량",  score: s?.공동체역량 ?? 0 },
-    { axis: "탐구 깊이",   score: s?.["탐구 깊이"]   ?? 0 },
-    { axis: "성장 주도성", score: s?.["성장 주도성"] ?? 0 },
-  ];
-
   // 성적 추이 바 차트 데이터
   const gradeBarData = GRADE_KEYS.map((gk) => {
     const rows = report.grade_trends?.[gk] || [];
@@ -248,51 +236,24 @@ export default function PremiumReportPDF({ report, major, createdAt }: PremiumRe
             📊 Executive Summary — 핵심 역량 분석
           </h2>
 
-          {/* ② flex 행 → print:block / ④ 차트 래퍼 → print:break-inside-avoid print:block */}
-          <div className="flex gap-4 items-start print:block">
-
-            {/* 레이더 차트 래퍼 — ④ 차트는 직접 부모에만 break-inside-avoid */}
-            <div className="print:break-inside-avoid print:block shrink-0">
-              <RadarChart
-                width={220} height={200}
-                data={radarData}
-                outerRadius="65%"
-                margin={{ top: 20, right: 40, bottom: 20, left: 40 }}
-              >
-                <PolarGrid stroke="#e2e8f0" />
-                <PolarAngleAxis
-                  dataKey="axis"
-                  tick={{ fontSize: 8, fill: "#374151", fontWeight: 600 }}
-                />
-                <PolarRadiusAxis angle={90} domain={[50, 100]} tick={false} axisLine={false} />
-                <Radar dataKey="score" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} strokeWidth={2}
-                  label={{ fontSize: 8, fontWeight: 700, fill: "#1e3a5f" }}
-                />
-              </RadarChart>
+          {/* ② grid → print:block */}
+          <div className="grid grid-cols-2 gap-2 mb-3 print:block print:space-y-2">
+            {/* ④ 개별 정보 박스에 break-inside-avoid */}
+            <div className="print:break-inside-avoid" style={{ background: "#f0f9ff", borderRadius: 8, padding: "8px 10px", border: "1px solid #bae6fd" }}>
+              <p style={{ margin: 0, fontWeight: 700, color: "#0369a1", fontSize: 8.5 }}>📅 출결 사항</p>
+              <p style={{ margin: "2px 0 0", color: "#374151", fontSize: 8.5, orphans: 3, widows: 3 }}>{report.attendance}</p>
             </div>
-
-            {/* 기본 정보 + 최종 평결 */}
-            <div style={{ flex: 1 }}>
-              {/* ② grid → print:block */}
-              <div className="grid grid-cols-2 gap-2 mb-3 print:block print:space-y-2">
-                {/* ④ 개별 정보 박스에 break-inside-avoid */}
-                <div className="print:break-inside-avoid" style={{ background: "#f0f9ff", borderRadius: 8, padding: "8px 10px", border: "1px solid #bae6fd" }}>
-                  <p style={{ margin: 0, fontWeight: 700, color: "#0369a1", fontSize: 8.5 }}>📅 출결 사항</p>
-                  <p style={{ margin: "2px 0 0", color: "#374151", fontSize: 8.5, orphans: 3, widows: 3 }}>{report.attendance}</p>
-                </div>
-                <div className="print:break-inside-avoid" style={{ background: "#f0fdf4", borderRadius: 8, padding: "8px 10px", border: "1px solid #bbf7d0" }}>
-                  <p style={{ margin: 0, fontWeight: 700, color: "#15803d", fontSize: 8.5 }}>🤝 봉사 활동</p>
-                  <p style={{ margin: "2px 0 0", color: "#374151", fontSize: 8.5, orphans: 3, widows: 3 }}>{report.volunteer}</p>
-                </div>
-              </div>
-              {/* ④ 최종 평결 박스 */}
-              <div className="print:break-inside-avoid" style={{ background: "#fafafa", borderRadius: 8, padding: "10px 12px", border: "1px solid #e5e7eb" }}>
-                <p style={{ margin: "0 0 3px", fontWeight: 700, color: NAVY, fontSize: 9.5 }}>🏆 AI 최종 평결</p>
-                <p style={{ margin: 0, color: "#374151", fontSize: 8.5, lineHeight: 1.8, orphans: 3, widows: 3 }}>
-                  {report.overall.final || "종합 평가 내용이 없습니다."}
-                </p>
-              </div>
+            <div className="print:break-inside-avoid" style={{ background: "#f0fdf4", borderRadius: 8, padding: "8px 10px", border: "1px solid #bbf7d0" }}>
+              <p style={{ margin: 0, fontWeight: 700, color: "#15803d", fontSize: 8.5 }}>🤝 봉사 활동</p>
+              <p style={{ margin: "2px 0 0", color: "#374151", fontSize: 8.5, orphans: 3, widows: 3 }}>{report.volunteer}</p>
             </div>
+          </div>
+          {/* ④ 최종 평결 박스 */}
+          <div className="print:break-inside-avoid" style={{ background: "#fafafa", borderRadius: 8, padding: "10px 12px", border: "1px solid #e5e7eb" }}>
+            <p style={{ margin: "0 0 3px", fontWeight: 700, color: NAVY, fontSize: 9.5 }}>🏆 AI 최종 평결</p>
+            <p style={{ margin: 0, color: "#374151", fontSize: 8.5, lineHeight: 1.8, orphans: 3, widows: 3 }}>
+              {report.overall.final || "종합 평가 내용이 없습니다."}
+            </p>
           </div>
         </div>
       </PdfPage>

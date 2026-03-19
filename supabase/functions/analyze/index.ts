@@ -479,13 +479,6 @@ interface ResponseData {
     analysis: string;
     final_comment: string;
   };
-  scores: {
-    "학업역량": number;    // 채점 STEP 검증 통과 후 확정된 정수 (60~95)
-    "진로역량": number;    // 채점 STEP 검증 통과 후 확정된 정수 (60~95)
-    "공동체역량": number;  // 채점 STEP 검증 통과 후 확정된 정수 (60~95)
-    "성장 주도성": number; // 채점 STEP 검증 통과 후 확정된 정수 (60~95)
-    "탐구 깊이": number;   // 채점 STEP 검증 통과 후 확정된 정수 (60~95)
-  };
 }
 `;
 
@@ -499,32 +492,6 @@ interface ResponseData {
     } catch (parseError) {
       throw new Error(`Gemini 응답 파싱 실패: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
     }
-
-    // ── 점수 규칙 서버사이드 보정 (최후 방어선) ──────────────────────────
-    const scores = analysisData.scores as Record<string, number>;
-    const keys = Object.keys(scores);
-
-    keys.forEach(k => { scores[k] = Math.min(95, Math.max(60, Math.round(scores[k]))); });
-
-    const highKeys = keys.filter(k => scores[k] >= 90).sort((a, b) => scores[b] - scores[a]);
-    highKeys.slice(1).forEach(k => { scores[k] = 89; });
-
-    const lowKeys = keys.filter(k => scores[k] <= 75);
-    if (lowKeys.length < 2) {
-      const sorted = [...keys].sort((a, b) => scores[a] - scores[b]);
-      sorted.slice(0, 2 - lowKeys.length).forEach(k => { if (scores[k] > 75) scores[k] = 75; });
-    }
-
-    const vals = keys.map(k => scores[k]);
-    const maxVal = Math.max(...vals);
-    const minVal = Math.min(...vals);
-    if (maxVal - minVal < 20) {
-      const minKey = keys.find(k => scores[k] === minVal)!;
-      scores[minKey] = Math.max(60, maxVal - 20);
-    }
-
-    analysisData.scores = scores;
-    // ─────────────────────────────────────────────────────────────────────
 
     // Supabase DB 저장
     const supabase = createClient(
