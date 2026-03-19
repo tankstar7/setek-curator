@@ -436,7 +436,12 @@ export default function PremiumReportPDF({ report, major, createdAt }: PremiumRe
         const actionPlan    = report.creative.find((c) => c.grade === "3학년(예정)");
         const subjectAct    = report.subject_activity?.[gk] || {};
 
-        const hasCreative   = creativeItem && !creativeItem.isUnavailable;
+        const UNAVAIL = ["정보 미제공으로 확인 불가", "해당 학년 기록 없음"];
+        const hasCreative = creativeItem && !creativeItem.isActionPlan && (
+          !UNAVAIL.includes(creativeItem.academic  || "") ||
+          !UNAVAIL.includes(creativeItem.career    || "") ||
+          !UNAVAIL.includes(creativeItem.community || "")
+        );
         const hasCards      = SUBJECT_TABS.some(({ key: tabKey }) => (subjectAct[tabKey] || []).length > 0);
         const hasActionPlan = gk === "grade3" && actionPlan?.isActionPlan;
         if (!hasCreative && !hasCards && !hasActionPlan) return null;
