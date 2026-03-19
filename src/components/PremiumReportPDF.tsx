@@ -444,7 +444,35 @@ export default function PremiumReportPDF({ report, major, createdAt }: PremiumRe
         );
         const hasCards      = SUBJECT_TABS.some(({ key: tabKey }) => (subjectAct[tabKey] || []).length > 0);
         const hasActionPlan = gk === "grade3" && actionPlan?.isActionPlan;
-        if (!hasCreative && !hasCards && !hasActionPlan) return null;
+
+        // 데이터가 하나도 없는 학년 → compact 미제공 페이지
+        if (!hasCreative && !hasCards && !hasActionPlan) {
+          return (
+            <PdfPage key={gk}>
+              <div className="report-section" style={{ padding: "6mm 18mm" }}>
+                <PageHeader major={major} createdAt={createdAt} />
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  background: NAVY, color: "white", borderRadius: 10,
+                  padding: "7px 18px", marginBottom: 18,
+                }}>
+                  <span style={{ fontSize: 13 }}>📚</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: "-0.5px" }}>{gradeLabel} 세부 분석</span>
+                </div>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  background: "#f8fafc", border: "1px dashed #cbd5e1",
+                  borderRadius: 8, padding: "12px 16px",
+                }}>
+                  <span style={{ fontSize: 14 }}>🔒</span>
+                  <p style={{ margin: 0, fontSize: 9.5, color: "#64748b", fontWeight: 600 }}>
+                    {gradeLabel} 자료는 공개되지 않아 분석이 제한됩니다.
+                  </p>
+                </div>
+              </div>
+            </PdfPage>
+          );
+        }
 
         return (
           <PdfPage key={gk}>
