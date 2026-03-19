@@ -79,12 +79,18 @@ export default function LabResultPage() {
 
         const ca = rawData.creative_activity || {};
         const bs = rawData.behavior_summary || {};
-        // grade3 창체: 3개 필드 모두 "해당 학년 기록 없음"이면 숨김
-        const grade3CreativeHasContent = ca.grade3 && (
-          ca.grade3.academic !== "해당 학년 기록 없음" ||
-          ca.grade3.career   !== "해당 학년 기록 없음" ||
-          ca.grade3.community !== "해당 학년 기록 없음"
-        );
+        // 창체 노드가 "데이터 없음" 상태인지 판별
+        const UNAVAILABLE = "정보 미제공으로 확인 불가";
+        const NO_RECORD   = "해당 학년 기록 없음";
+        function creativeHasContent(node: any) {
+          if (!node) return false;
+          return (
+            node.academic  !== UNAVAILABLE && node.academic  !== NO_RECORD ||
+            node.career    !== UNAVAILABLE && node.career    !== NO_RECORD ||
+            node.community !== UNAVAILABLE && node.community !== NO_RECORD
+          );
+        }
+
         // next_action_plan 우선, 없으면 grade3_action_plan fallback
         const actionPlanText = ca.next_action_plan || ca.grade3_action_plan || null;
 
@@ -93,10 +99,11 @@ export default function LabResultPage() {
           attendance: rawData.basic_info?.attendance || "기록 없음",
           volunteer: rawData.basic_info?.volunteer || "기록 없음",
           // 창의적 체험활동 (학년별 객체 → 배열로 변환)
+          // 비공개(미제공) 학년도 포함하되 isUnavailable 플래그로 컴팩트 렌더링
           creative: [
             ...(ca.grade1 ? [{ ...ca.grade1, grade: "1학년" }] : []),
-            ...(ca.grade2 ? [{ ...ca.grade2, grade: "2학년" }] : []),
-            ...(grade3CreativeHasContent ? [{ ...ca.grade3, grade: "3학년" }] : []),
+            ...(ca.grade2 ? [{ ...ca.grade2, grade: "2학년", isUnavailable: !creativeHasContent(ca.grade2) }] : []),
+            ...(ca.grade3 ? [{ ...ca.grade3, grade: "3학년", isUnavailable: !creativeHasContent(ca.grade3) }] : []),
             ...(actionPlanText ? [{ grade: "3학년(예정)", isActionPlan: true, desc: actionPlanText }] : []),
           ],
           // 종합 의견
@@ -322,6 +329,11 @@ export default function LabResultPage() {
                   {node.isActionPlan ? (
                     <div className="rounded-2xl bg-slate-50 border border-slate-200 p-8 shadow-inner">
                       <p className="text-slate-700 font-bold text-[14px] leading-relaxed break-keep">{node.desc}</p>
+                    </div>
+                  ) : node.isUnavailable ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-5 py-3">
+                      <span className="text-xs font-bold text-gray-400">🔒 데이터 미제공</span>
+                      <span className="text-xs text-gray-400">— 해당 학년 창체 기록이 공개되지 않았습니다.</span>
                     </div>
                   ) : (
                     <div className="space-y-3">

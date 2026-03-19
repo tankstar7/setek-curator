@@ -410,7 +410,17 @@ grade_analysis가 JSON에 없으면 전체 응답이 무효 처리된다.
 [출력 데이터 구조 (TypeScript Interface)]
 반드시 아래 인터페이스 구조에 맞춰 유효한 JSON 형식으로만 응답할 것. 마크다운 기호(\`\`\`) 및 문자열 설명문 절대 포함 금지.
 
-interface SubjectCard { subject: string; summary: string; eval: string; limit: string; }
+[SubjectCard 출력 전 자가검증 — 모든 카드에 적용, 위반 시 즉시 재작성]
+① summary: 세특 원문의 구체적 활동명·실험명·탐구 주제가 1개 이상 포함되어 있는가? 문장 3개 미만이거나 "~활동을 수행한다" 1문장으로 끝나면 재작성.
+② eval: 활동명을 근거로 역량을 설명하는 인과 문장이 포함되어 있는가? 문장 3개 미만이거나 역량 명칭만 나열하고 끝나면 재작성.
+③ limit: 세특에 실제로 빠진 내용(변인 통제 미기재, 데이터 출처 부재, 정량 결과 부재 등)이 구체적으로 서술되어 있는가? "~경향을 보인다" / "~고찰이 부족하다" 등 막연한 표현만 있으면 재작성.
+
+interface SubjectCard {
+  subject: string;
+  summary: string; // 필수: 세특 원문의 구체적 활동명·실험명 포함. 최소 3문장. 추상적 1문장 요약 금지.
+  eval: string;    // 필수: 활동→역량 인과 관계 명시. 최소 3문장. 역량 명칭만 나열 금지.
+  limit: string;   // 필수: "한계: [세특에 실제로 없는 것 구체적 지적, 최소 2문장]. -> [다음 학년]에는 [액션플랜]을 제안합니다." 막연한 경향 서술 금지.
+}
 
 interface GradeAnalysis {
   balance: string;          // 교과군 균형성 분석 (구체적 과목명·등급 포함)
