@@ -24,7 +24,7 @@ type SubjectTabKey = "group1" | "group2" | "group3";
 
 interface SubjectCard { subject: string; summary: string; eval: string; limit: string; }
 interface CreativeItem {
-  grade: string; isActionPlan?: boolean; desc?: string;
+  grade: string; isActionPlan?: boolean; isUnavailable?: boolean; desc?: string;
   academic?: string; career?: string; community?: string;
 }
 interface GradeAnalysis {
@@ -435,6 +435,11 @@ export default function PremiumReportPDF({ report, major, createdAt }: PremiumRe
         const creativeItem  = report.creative.find((c) => c.grade === gradeLabel);
         const actionPlan    = report.creative.find((c) => c.grade === "3학년(예정)");
         const subjectAct    = report.subject_activity?.[gk] || {};
+
+        const hasCreative   = creativeItem && !creativeItem.isUnavailable;
+        const hasCards      = SUBJECT_TABS.some(({ key: tabKey }) => (subjectAct[tabKey] || []).length > 0);
+        const hasActionPlan = gk === "grade3" && actionPlan?.isActionPlan;
+        if (!hasCreative && !hasCards && !hasActionPlan) return null;
 
         return (
           <PdfPage key={gk}>
