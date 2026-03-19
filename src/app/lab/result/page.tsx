@@ -530,7 +530,11 @@ export default function LabResultPage() {
           {/* ── 인쇄 전용: 전 학년 전체 출력 ── */}
           <div className="print-only hidden space-y-12">
             <h3 className="text-2xl font-bold text-[#1e3a5f] border-b-2 border-blue-50 pb-2">과목별 세특 정밀 분석 (전 학년)</h3>
-            {GRADE_TABS.map(({ key, label: gradeLabel }) => (
+            {GRADE_TABS.map(({ key, label: gradeLabel }) => {
+              const hasTrends = (report.grade_trends?.[key] || []).length > 0;
+              const hasCards = SUBJECT_TABS.some(({ key: tabKey }) => (report.subject_activity?.[key]?.[tabKey] || []).length > 0);
+              if (!hasTrends && !hasCards) return null;
+              return (
               <div key={key} className="space-y-6">
                 <h4 className="text-lg font-bold text-gray-700 border-b border-gray-100 pb-2">{gradeLabel}</h4>
                 {/* 성적 표 */}
@@ -585,7 +589,8 @@ export default function LabResultPage() {
                   );
                 })}
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
