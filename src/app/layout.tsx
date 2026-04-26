@@ -28,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={`${geistSans.className} ${geistSans.variable} ${geistMono.variable} antialiased overflow-x-hidden`}>
+      <body suppressHydrationWarning className={`${geistSans.className} ${geistSans.variable} ${geistMono.variable} antialiased overflow-x-hidden`}>
         <InAppBrowserHandler />
         <CopyGuard>
           <Navbar />

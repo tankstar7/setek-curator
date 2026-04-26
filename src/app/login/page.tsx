@@ -75,6 +75,13 @@ export default function LoginPage() {
     });
   };
 
+  const handleKakaoLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: { redirectTo: window.location.origin + '/auth/callback' },
+    });
+  };
+
   // 강제 초기화 (쿠키·세션 완전 삭제 후 새로 시작)
   const handleForceReset = async () => {
     try {
@@ -136,17 +143,29 @@ export default function LoginPage() {
           프리미엄 세특 보고서를 확인하세요.
         </p>
 
-        <button
-          onClick={handleGoogleLogin}
-          className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-6 py-3.5 font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md active:scale-95"
-        >
-          <img
-            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-            alt="Google"
-            className="h-5 w-5"
-          />
-          Google로 로그인 / 가입하기
-        </button>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={handleKakaoLogin}
+            className="flex w-full items-center justify-center gap-3 rounded-xl border-0 bg-[#FEE500] px-6 py-3.5 font-bold text-[#191919] shadow-sm transition-all hover:bg-[#f5dc00] hover:shadow-md active:scale-95"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 3C6.477 3 2 6.477 2 10.8c0 2.7 1.677 5.08 4.2 6.502l-1.07 3.99a.3.3 0 0 0 .46.327L9.92 19.2A11.64 11.64 0 0 0 12 19.4c5.523 0 10-3.477 10-7.8C22 6.477 17.523 3 12 3z" />
+            </svg>
+            카카오로 로그인 / 가입하기
+          </button>
+
+          <button
+            onClick={handleGoogleLogin}
+            className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-6 py-3.5 font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow-md active:scale-95"
+          >
+            <img
+              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+              alt="Google"
+              className="h-5 w-5"
+            />
+            Google로 로그인 / 가입하기
+          </button>
+        </div>
 
         <p className="mt-8 text-xs text-slate-400">
           로그인 시 서비스 이용약관 및<br />개인정보 처리방침에 동의하게 됩니다.

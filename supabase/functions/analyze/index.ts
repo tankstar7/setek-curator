@@ -14,28 +14,15 @@ function toBase64(buffer: ArrayBuffer): string {
 }
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-const ALLOWED_ORIGINS = [
-  "https://setek-curator.vercel.app",
-  "http://localhost:3000",
-];
-
-function corsHeaders(origin: string) {
-  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowed,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  };
-}
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
-  const origin = req.headers.get("origin") || "";
-  const cors = corsHeaders(origin);
-
-  // Preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: cors });
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -47,7 +34,7 @@ Deno.serve(async (req) => {
     if (!file || !major) {
       return new Response(
         JSON.stringify({ error: "파일과 희망 전공 데이터가 누락되었습니다." }),
-        { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -130,7 +117,7 @@ Deno.serve(async (req) => {
 - 융합선택과목: 진로선택과목과 동일하게 성취수준(A/B/C)으로 파싱한다.
 - 원점수·과목평균·표준편차가 존재하는 경우, 등급 보조 지표로 함께 참고한다.
 - 일부 컬럼이 PDF에서 누락되거나 인식 불가한 경우, 파싱 가능한 데이터만으로 평가하고 누락 항목은 "확인 불가"로 명시한다.
-- PDF에서 교과학습발달상황 테이블 자체를 인식할 수 없는 경우, grade_analysis 전 항목을 "성적 정보 확인 불가"로 처리하고, 분석 상단에 "※ 내신 성적 미인식으로 학업역량 평가가 제한될 수 있습니다."를 기재한다.
+- PDF에서 교과학습발달상황 테이블 자체를 인식할 수 없거나 구조가 복잡해 파싱에 실패한 경우, grade_analysis 전 항목을 "성적 정보 확인 불가"로 처리하고, warning 필드에 "※ 내신 성적 테이블 인식에 실패했습니다. (PDF 서식 호환성 문제)"를 기재한다.
 - 22개정 과목의 경우 과목명에 숫자(1·2)가 포함되어 있으며, 공통국어1·2 / 공통수학1·2 / 통합과학1·2 등을 정상 과목명으로 인식할 것. 숫자가 붙은 과목명을 오류로 처리하거나 분류에서 누락하는 것을 금지한다.
 
 ▶ 학업성취도 평가 기준 (grade_analysis 필드에 반영)
@@ -453,6 +440,14 @@ interface CreativeActivityGrade {
   community: string;  // 공동체역량 관련 창체 활동 서술 (봉사활동 포함). 없으면 "해당 학년 기록 없음", 비공개면 "정보 미제공으로 확인 불가"
 }
 
+interface Scores {
+  academic: number;    // 학업역량 점수 (60~95)
+  career: number;      // 진로역량 점수 (60~95)
+  community: number;   // 공동체역량 점수 (60~95)
+  proactive: number;   // 성장 주도성 점수 (60~95)
+  depth: number;       // 탐구 깊이 점수 (60~95)
+}
+
 interface ResponseData {
   basic_info: { attendance: string; volunteer: string; };
   creative_activity: {
@@ -467,6 +462,7 @@ interface ResponseData {
     grade3: Array<{ subject: string; sem1: string; sem2: string; }>;  // 유형 A·B: 빈 배열 []
   };
   grade_analysis: GradeAnalysis;
+  scores: Scores;
   subject_activity: {
     grade1: { group1: SubjectCard[]; group2: SubjectCard[]; group3: SubjectCard[]; };
     grade2: { group1: SubjectCard[]; group2: SubjectCard[]; group3: SubjectCard[]; };  // 유형 A: 모든 그룹 빈 배열 []
@@ -509,7 +505,7 @@ interface ResponseData {
 
     return new Response(
       JSON.stringify({ success: true, id: insertData.id }),
-      { headers: { ...cors, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -519,7 +515,7 @@ interface ResponseData {
         error: "생기부 분석 중 서버 오류가 발생했습니다.",
         details: error instanceof Error ? error.message : String(error),
       }),
-      { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

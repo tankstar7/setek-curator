@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { supabase } from '@/lib/supabase';
@@ -218,7 +219,7 @@ export default function ReportDetailPage() {
           <article className="prose prose-slate max-w-none">
 
             {/* 무료 미리보기 — 항상 표시 */}
-            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
               {report.preview_content ?? ''}
             </ReactMarkdown>
 
@@ -230,7 +231,7 @@ export default function ReportDetailPage() {
                   <div className="mb-6 inline-block rounded-full bg-blue-100 px-4 py-1.5 text-sm font-bold text-blue-800">
                     🎉 프리미엄 본문이 공개되었습니다
                   </div>
-                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                     {report.main_content ?? ''}
                   </ReactMarkdown>
                 </div>
@@ -291,7 +292,7 @@ export default function ReportDetailPage() {
             {/* FREE 보고서는 전체 본문 바로 노출 */}
             {!isPremiumReport && report.main_content && (
               <div className="mt-8 border-t-2 border-dashed border-slate-200 pt-8">
-                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
                   {report.main_content}
                 </ReactMarkdown>
               </div>

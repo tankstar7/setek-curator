@@ -21,7 +21,28 @@
       "Bash(cd \"C:/Users/USER/desktop/setek-web\" && npx tsc --noEmit 2>&1)",
       "Bash(echo INSTALLED:*)",
       "Bash(grep:*)",
-      "Bash(cd /c/Users/USER/desktop/setek-web && npx tsc --noEmit 2>&1)"
+      "Bash(cd /c/Users/USER/desktop/setek-web && npx tsc --noEmit 2>&1)",
+      "Bash(npm install html2canvas jspdf)",
+      "Bash(grep -E '\"\"html2canvas|\"\"jspdf' package.json)",
+      "Bash(npx tsc --noEmit --project tsconfig.json)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx vercel:*)",
+      "Bash(npx supabase:*)",
+      "Bash(find /c/Users/USER/Desktop/setek-web/src -name *analyze* -o -name *score* -o -name *pdf*)",
+      "Bash(source c:/Users/USER/Desktop/setek-web/.env.local)",
+      "Bash(curl -s \"https://xcrcclaahodxpwikaecc.supabase.co/rest/v1/analysis_results?select=id,created_at,result_data->scores&order=created_at.desc&limit=3\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjcmNjbGFhaG9keHB3aWthZWNjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAyNjg2OCwiZXhwIjoyMDg3NjAyODY4fQ.Cx-hMG1emsnCC2B1BTCbC5o1dPV2b2NRwfbkzKwSJj0\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjcmNjbGFhaG9keHB3aWthZWNjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAyNjg2OCwiZXhwIjoyMDg3NjAyODY4fQ.Cx-hMG1emsnCC2B1BTCbC5o1dPV2b2NRwfbkzKwSJj0\")",
+      "Bash(curl -s \"https://xcrcclaahodxpwikaecc.supabase.co/rest/v1/analysis_results?select=id,created_at,result_data&order=created_at.desc&limit=1\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjcmNjbGFhaG9keHB3aWthZWNjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAyNjg2OCwiZXhwIjoyMDg3NjAyODY4fQ.Cx-hMG1emsnCC2B1BTCbC5o1dPV2b2NRwfbkzKwSJj0\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjcmNjbGFhaG9keHB3aWthZWNjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAyNjg2OCwiZXhwIjoyMDg3NjAyODY4fQ.Cx-hMG1emsnCC2B1BTCbC5o1dPV2b2NRwfbkzKwSJj0\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\)[0]; print\\(''''id:'''', d[''''id'''']\\); s=d.get\\(''''result_data'''',{}\\).get\\(''''scores''''\\); print\\(''''scores:'''', json.dumps\\(s, ensure_ascii=False\\)\\)\")",
+      "Bash(curl -s \"https://xcrcclaahodxpwikaecc.supabase.co/rest/v1/analysis_results?select=id,created_at,result_data->scores&order=created_at.desc&limit=5\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjcmNjbGFhaG9keHB3aWthZWNjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAyNjg2OCwiZXhwIjoyMDg3NjAyODY4fQ.Cx-hMG1emsnCC2B1BTCbC5o1dPV2b2NRwfbkzKwSJj0\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjcmNjbGFhaG9keHB3aWthZWNjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjAyNjg2OCwiZXhwIjoyMDg3NjAyODY4fQ.Cx-hMG1emsnCC2B1BTCbC5o1dPV2b2NRwfbkzKwSJj0\")",
+      "Bash(3학년에는 ~ 제안합니다.\" 형식 강제:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx next:*)",
+      "WebSearch",
+      "WebFetch(domain:www.kmib.co.kr)",
+      "WebFetch(domain:www.setk.pro)",
+      "WebFetch(domain:www.teacher-logbook.kr)"
     ]
   }
 }
